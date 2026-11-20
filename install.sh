@@ -17,6 +17,7 @@ REMOTE_ARB4="https://raw.githubusercontent.com/Pkdev730/Holograma/main/cfg_4.db"
 declare -A ESTADO
 ESTADO[1]=0
 ESTADO[2]=0
+ESTADO[3]=0
 
 printf "\033c"
 echo -e "${PURPLE}==========================================${NC}"
@@ -94,6 +95,7 @@ while true; do
     echo -e "${CYAN}┌── MODS FREE FIRE (CLOUD) ──────────────┐${NC}"
     echo -e "  [1] Injetar ESP/Chams (Shaders) $(status 1)"
     echo -e "  [2] Injetar Aimbot (Fileinfos) $(status 2)"
+    echo -e "  [3] Injetar TUDO (Mod Completo) $(status 3)"
     echo -e "${CYAN}└────────────────────────────────────────┘${NC}"
 
     echo -e "\n${RED}┌── DESCONECTAR / LIMPAR (BYPASS) ───────┐${NC}"
@@ -120,6 +122,7 @@ while true; do
 
         ESTADO[1]=0
         ESTADO[2]=0
+        ESTADO[3]=0
 
         echo -e "${GREEN}[+] Bypass concluído! Originais restaurados.${NC}"
         sleep 3
@@ -140,7 +143,7 @@ while true; do
             curl -s "$REMOTE_ARB3" | adb shell "cat > ${FF_ASSETS_DIR}/optionalavatarres/gameassetbundles/optionalavatarres_commonab_shader.YXsllDlwiET7~2Flua2jgC6ucxzic~3D"
 
             ESTADO[1]=1
-            echo -e "\n${GREEN}[+] Shaders Injetados! Abra o Free Fire.${NC}"
+            echo -e "\n${GREEN}[+] Shaders Injetados!${NC}"
             ;;
         2)
             echo -e "\n${YELLOW}[*] Fechando o Free Fire...${NC}"
@@ -153,7 +156,26 @@ while true; do
             curl -s "$REMOTE_ARB4" | adb shell "cat > ${FF_ASSETS_DIR}/optionalavatarres/fileinfo"
 
             ESTADO[2]=1
-            echo -e "\n${GREEN}[+] Fileinfos Injetados! Aimbot aplicado.${NC}"
+            echo -e "\n${GREEN}[+] Fileinfos Injetados!${NC}"
+            ;;
+        3)
+            echo -e "\n${YELLOW}[*] Fechando o Free Fire...${NC}"
+            adb shell am force-stop $FF_PACKAGE
+            sleep 1
+
+            echo -e "${YELLOW}[*] Injetando Pacote Completo via Cloud...${NC}"
+            adb shell "mkdir -p ${FF_ASSETS_DIR}/gameassetbundles"
+            adb shell "mkdir -p ${FF_ASSETS_DIR}/optionalavatarres/gameassetbundles"
+            
+            # Shaders
+            curl -s "$REMOTE_ARB1" | adb shell "cat > ${FF_ASSETS_DIR}/gameassetbundles/shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D"
+            curl -s "$REMOTE_ARB3" | adb shell "cat > ${FF_ASSETS_DIR}/optionalavatarres/gameassetbundles/optionalavatarres_commonab_shader.YXsllDlwiET7~2Flua2jgC6ucxzic~3D"
+            # Fileinfos
+            curl -s "$REMOTE_ARB2" | adb shell "cat > ${FF_ASSETS_DIR}/fileinfo"
+            curl -s "$REMOTE_ARB4" | adb shell "cat > ${FF_ASSETS_DIR}/optionalavatarres/fileinfo"
+
+            ESTADO[3]=1
+            echo -e "\n${GREEN}[+] Pacote Completo Injetado! Abra o Free Fire.${NC}"
             ;;
         0)
             printf "\033c"
