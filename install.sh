@@ -6,91 +6,24 @@ YELLOW='\033[1;33m'; PURPLE='\033[0;35m'; WHITE='\033[1;37m'; NC='\033[0m'
 # --- CONFIGURAÇÕES ---
 FIREBASE_URL="https://external-serv-default-rtdb.firebaseio.com"
 FF_PACKAGE="com.dts.freefireth"
-FF_DIR="/storage/emulated/0/Android/data/com.dts.freefireth/files/contentcache/Optional/android"
-TMP_DIR="/data/data/com.termux/files/usr/tmp/ghost_remote"
+FF_DIR="/storage/emulated/0/Android/data/${FF_PACKAGE}/files/contentcache/Optional/android"
+BACKUP_DIR="/sdcard/Download/ff_original_backup"
+TMP_DIR="/data/data/com.termux/files/usr/tmp/ghost"
 
-# URLs dos arquivos no GitHub
+# LINKS DO GITHUB
 REMOTE_ARB1="https://raw.githubusercontent.com/Pkdev730/Holograma/main/bkp_1.txt"
 REMOTE_ARB2="https://raw.githubusercontent.com/Pkdev730/Holograma/main/data_02.dat"
 REMOTE_ARB3="https://raw.githubusercontent.com/Pkdev730/Holograma/main/texture_3.bin"
 REMOTE_ARB4="https://raw.githubusercontent.com/Pkdev730/Holograma/main/cfg_4.db"
 
-declare -A ESTADO
-ESTADO[1]=0
-ESTADO[2]=0
-ESTADO[3]=0
-
-# --- FUNÇÃO DE DOWNLOAD COM VERIFICAÇÃO ---
-download_verified() {
-    local url="$1"
-    local local_file="$2"
-    local min_size="${3:-512}"
-
-    echo -e "${YELLOW}[*] Baixando $(basename "$local_file")...${NC}"
-    curl -sL --max-time 20 -o "$local_file" "$url"
-
-    if [ ! -f "$local_file" ]; then
-        echo -e "${RED}[!] Falha no download: $url${NC}"
-        return 1
+# --- CHECA DEPENDÊNCIAS ---
+for cmd in adb curl; do
+    if ! command -v $cmd &> /dev/null; then
+        printf "\033c"
+        echo -e "${RED}[!] Falta o pacote: $cmd. Rode: pkg install android-tools curl${NC}"
+        exit 1
     fi
-
-    local size=$(stat -c%s "$local_file" 2>/dev/null || echo 0)
-    if [ "$size" -lt "$min_size" ]; then
-        echo -e "${RED}[!] Arquivo muito pequeno ($size bytes). Provável erro 404 do GitHub.${NC}"
-        rm -f "$local_file"
-        return 1
-    fi
-
-    if head -c 100 "$local_file" | grep -qi "<!DOCTYPE\|<html"; then
-        echo -e "${RED}[!] O arquivo é uma página HTML de erro, não o binário.${NC}"
-        rm -f "$local_file"
-        return 1
-    fi
-
-    echo -e "${GREEN}[+] $(basename "$local_file") ok ($size bytes)${NC}"
-    return 0
-}
-
-# --- FUNÇÃO DE INJEÇÃO (COM FALLBACK) ---
-inject_file() {
-    local local_file="$1"
-    local remote_path="$2"
-    local remote_dir=$(dirname "$remote_path")
-
-    # 1. Tenta via Shizuku (rish) - Sem precisar de root
-    if command -v rish >/dev/null 2>&1; then
-        echo -e "${YELLOW}[*] Injetando via Shizuku (rish)...${NC}"
-        rish -c "mkdir -p '$remote_dir' && cat '$local_file' > '$remote_path'" >/dev/null 2>&1
-        if [ $? -eq 0 ]; then
-            echo -e "${GREEN}[+] Injetado via Shizuku: $(basename "$remote_path")${NC}"
-            return 0
-        fi
-        echo -e "${YELLOW}[!] Shizuku falhou. Tentando via ADB Push...${NC}"
-    fi
-
-    # 2. Tenta via ADB Push normal (funciona se o aparelho tiver root ou for emulador)
-    adb push "$local_file" "$remote_path" >/dev/null 2>&1
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}[+] Injetado via ADB: $(basename "$remote_path")${NC}"
-        return 0
-    fi
-
-    echo -e "${RED}[!] Falha total ao injetar: $(basename "$remote_path")${NC}"
-    return 1
-}
-
-# --- FORÇAR ADB ROOT (Opcional) ---
-force_adb_root() {
-    echo -e "${YELLOW}[*] Verificando ADB root...${NC}"
-    adb root > /dev/null 2>&1
-    sleep 1
-    if adb shell "id" 2>/dev/null | grep -q "uid=0"; then
-        echo -e "${GREEN}[+] ADB root disponível.${NC}"
-        return 0
-    fi
-    echo -e "${YELLOW}[!] Sem ADB root. Tentaremos via Shizuku.${NC}"
-    return 1
-}
+done
 
 printf "\033c"
 echo -e "${PURPLE}==========================================${NC}"
@@ -123,12 +56,10 @@ else
     sleep 1
 
     if [ "$(adb get-state 2>/dev/null | tr -d '\r\n')" != "device" ]; then
-        echo -e "${RED}[!] Falha na conexão. Abortando.${NC}"
+        echo -e "${RED}[!] Falha na conexão. Verifique os dados e tente novamente.${NC}"
         exit 1
     fi
 fi
-
-force_adb_root
 
 printf "\033c"
 echo -e "${PURPLE}==========================================${NC}"
@@ -138,26 +69,32 @@ echo -e "${PURPLE}==========================================${NC}\n"
 echo -n "Digite a sua Key (ex: External-teste1): "
 read -r USER_KEY < /dev/tty
 
-echo -e "${YELLOW}[*] Verificando Key no servidor...${NC}"
-FIREBASE_RESPONSE=$(curl -s --max-time 5 "${FIREBASE_URL}/.json")
-
-if [ -z "$FIREBASE_RESPONSE" ] || echo "$FIREBASE_RESPONSE" | grep -q "error"; then
-    echo -e "${RED}[!] Falha ao conectar no banco.${NC}"
+if [ -z "$USER_KEY" ]; then
+    echo -e "${RED}[!] Key vazia. Abortando.${NC}"
     exit 1
 fi
 
-STATUS_KEY=$(echo "$FIREBASE_RESPONSE" | grep -o "\"$USER_KEY\".*\"status\":\"ativada\"" | head -n 1)
+echo -e "${YELLOW}[*] Verificando Key no servidor...${NC}"
+FIREBASE_RESPONSE=$(curl -s --max-time 5 "${FIREBASE_URL}/.json")
 
-if [ -z "$STATUS_KEY" ]; then
+if [ -z "$FIREBASE_RESPONSE" ] || [ "$FIREBASE_RESPONSE" == "null" ]; then
+    echo -e "${RED}[!] Falha ao conectar ou banco vazio.${NC}"
+    exit 1
+fi
+
+STATUS=$(echo "$FIREBASE_RESPONSE" | grep -o "\"$USER_KEY\".*\"status\":\"ativada\"" | head -n 1)
+
+if [ -z "$STATUS" ]; then
     echo -e "${RED}[!] Key não encontrada, inativa ou expirada.${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}[+] Acesso Autorizado!${NC}"
+echo -e "${GREEN}[+] Acesso Autorizado! Licença Válida.${NC}"
 sleep 2
 
 # --- MENU PRINCIPAL ---
-mkdir -p "$TMP_DIR"
+declare -A ESTADO
+for i in 1 2 3; do ESTADO[$i]=0; done
 
 while true; do
     printf "\033c"
@@ -169,14 +106,14 @@ while true; do
         if [ "${ESTADO[$1]}" -eq 1 ]; then echo -e "${GREEN}[ON]${NC}"; else echo -e "${RED}[OFF]${NC}"; fi
     }
 
-    echo -e "${CYAN}┌── MODS FREE FIRE (CLOUD) ──────────────┐${NC}"
+    echo -e "${CYAN}┌── MODS FREE FIRE ──────────────────────┐${NC}"
     echo -e "  [1] Injetar ESP/Chams (Shaders) $(status 1)"
-    echo -e "  [2] Injetar Aimbot (Fileinfos) $(status 2)"
-    echo -e "  [3] Injetar TUDO (Mod Completo) $(status 3)"
+    echo -e "  [2] Injetar Aimbot (Hook/Assets) $(status 2)"
+    echo -e "  [3] Injetar Todos os Mods        $(status 3)"
     echo -e "${CYAN}└────────────────────────────────────────┘${NC}"
 
     echo -e "\n${RED}┌── DESCONECTAR / LIMPAR (BYPASS) ───────┐${NC}"
-    echo -e "  [99] Desativar Mods (Restaurar Originais)"
+    echo -e "  [99] Restaurar Originais e Limpar Cache"
     echo -e "${RED}└────────────────────────────────────────┘${NC}"
 
     echo -e "\n  [0] Encerrar Sessão"
@@ -184,86 +121,94 @@ while true; do
     read -r FUNC_OPT < /dev/tty
 
     if [ "$FUNC_OPT" == "99" ]; then
-        echo -e "\n${YELLOW}[*] Fechando o Free Fire...${NC}"
-        adb shell am force-stop $FF_PACKAGE
-        sleep 1
+        echo -e "\n${RED}[!] AVISO: Isso vai limpar os mods e restaurar o Free Fire original.${NC}"
+        echo -n "Tem certeza? (s/n): "
+        read -r CONFIRMA < /dev/tty
 
-        echo -e "${YELLOW}[*] Restaurando originais via Cloud...${NC}"
-        
-        download_verified "$REMOTE_ARB2" "$TMP_DIR/fileinfo" 512
-        download_verified "$REMOTE_ARB4" "$TMP_DIR/fileinfo_opt" 512
-        
-        inject_file "$TMP_DIR/fileinfo" "${FF_DIR}/fileinfo"
-        inject_file "$TMP_DIR/fileinfo_opt" "${FF_DIR}/optionalavatarres/fileinfo"
+        if [ "$CONFIRMA" == "s" ]; then
+            echo -e "\n${YELLOW}[*] Fechando o Free Fire...${NC}"
+            adb shell am force-stop $FF_PACKAGE
 
-        ESTADO[1]=0; ESTADO[2]=0; ESTADO[3]=0
-        echo -e "\n${GREEN}[+] Bypass concluído! Originais restaurados.${NC}"
-        sleep 3
-        continue
+            echo -e "${YELLOW}[*] Restaurando arquivos originais do backup...${NC}"
+            if [ -d "${BACKUP_DIR}" ]; then
+                adb shell "rm -rf ${FF_DIR}/gameassetbundles"
+                adb shell "rm -rf ${FF_DIR}/optionalavatarres"
+                adb shell "cp -r ${BACKUP_DIR}/* ${FF_DIR}/"
+                echo -e "${GREEN}[+] Bypass concluído! Originais restaurados.${NC}"
+            else
+                echo -e "${RED}[!] Backup não encontrado. Limpando cache pra o jogo baixar originais...${NC}"
+                adb shell "rm -rf ${FF_DIR}/gameassetbundles"
+                adb shell "rm -rf ${FF_DIR}/optionalavatarres"
+            fi
+            
+            for i in 1 2 3; do ESTADO[$i]=0; done
+            sleep 3
+            continue
+        fi
     fi
 
     case $FUNC_OPT in
-        1)
+        1|2|3)
             echo -e "\n${YELLOW}[*] Fechando o Free Fire...${NC}"
             adb shell am force-stop $FF_PACKAGE
             sleep 1
 
-            echo -e "${YELLOW}[*] Injetando Shaders via Cloud...${NC}"
-            
-            if download_verified "$REMOTE_ARB1" "$TMP_DIR/shaders.bin" 1024 && \
-               download_verified "$REMOTE_ARB3" "$TMP_DIR/optional_shader.bin" 1024; then
-                inject_file "$TMP_DIR/shaders.bin" "${FF_DIR}/gameassetbundles/shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D"
-                inject_file "$TMP_DIR/optional_shader.bin" "${FF_DIR}/optionalavatarres/gameassetbundles/optionalavatarres_commonab_shader.YXsllDlwiET7~2Flua2jgC6ucxzic~3D"
-                ESTADO[1]=1
-                echo -e "\n${GREEN}[+] Shaders Injetados! Abra o Free Fire.${NC}"
-            else
-                echo -e "\n${RED}[!] Falha na injeção. Arquivos inválidos ou rede fora.${NC}"
+            if [ ! -d "${BACKUP_DIR}" ]; then
+                echo -e "${YELLOW}[*] Criando backup de segurança do jogo original...${NC}"
+                adb shell "mkdir -p ${BACKUP_DIR}"
+                adb shell "cp -r ${FF_DIR}/gameassetbundles ${BACKUP_DIR}/"
+                adb shell "cp -r ${FF_DIR}/optionalavatarres ${BACKUP_DIR}/"
+                adb shell "cp ${FF_DIR}/fileinfo ${BACKUP_DIR}/"
+                adb shell "cp ${FF_DIR}/optionalavatarres/fileinfo ${BACKUP_DIR}/"
             fi
-            ;;
-        2)
-            echo -e "\n${YELLOW}[*] Fechando o Free Fire...${NC}"
-            adb shell am force-stop $FF_PACKAGE
-            sleep 1
 
-            echo -e "${YELLOW}[*] Injetando Fileinfos via Cloud...${NC}"
-            
-            if download_verified "$REMOTE_ARB2" "$TMP_DIR/fileinfo" 512 && \
-               download_verified "$REMOTE_ARB4" "$TMP_DIR/fileinfo_opt" 512; then
-                inject_file "$TMP_DIR/fileinfo" "${FF_DIR}/fileinfo"
-                inject_file "$TMP_DIR/fileinfo_opt" "${FF_DIR}/optionalavatarres/fileinfo"
-                ESTADO[2]=1
-                echo -e "\n${GREEN}[+] Fileinfos Injetados! Abra o Free Fire.${NC}"
-            else
-                echo -e "\n${RED}[!] Falha na injeção. Arquivos inválidos ou rede fora.${NC}"
+            # Preparando arquivos temporários
+            mkdir -p "$TMP_DIR"
+
+            echo -e "${YELLOW}[*] Baixando assets do GitHub para memória temporária...${NC}"
+            curl -sL "$REMOTE_ARB1" -o "${TMP_DIR}/arb1.bin"
+            curl -sL "$REMOTE_ARB2" -o "${TMP_DIR}/arb2.bin"
+            curl -sL "$REMOTE_ARB3" -o "${TMP_DIR}/arb3.bin"
+            curl -sL "$REMOTE_ARB4" -o "${TMP_DIR}/arb4.bin"
+
+            # Verifica se o download realmente aconteceu (evita injetar arquivo vazio)
+            if [ ! -s "${TMP_DIR}/arb1.bin" ]; then
+                echo -e "${RED}[!] Falha no download do GitHub. Verifica os links.${NC}"
+                sleep 3
+                continue
             fi
-            ;;
-        3)
-            echo -e "\n${YELLOW}[*] Fechando o Free Fire...${NC}"
-            adb shell am force-stop $FF_PACKAGE
-            sleep 1
 
-            echo -e "${YELLOW}[*] Injetando Pacote Completo via Cloud...${NC}"
+            echo -e "${YELLOW}[*] Injetando mods via ADB Push...${NC}"
             
-            local_ok=1
-            download_verified "$REMOTE_ARB1" "$TMP_DIR/shaders.bin" 1024 || local_ok=0
-            download_verified "$REMOTE_ARB3" "$TMP_DIR/optional_shader.bin" 1024 || local_ok=0
-            download_verified "$REMOTE_ARB2" "$TMP_DIR/fileinfo" 512 || local_ok=0
-            download_verified "$REMOTE_ARB4" "$TMP_DIR/fileinfo_opt" 512 || local_ok=0
-
-            if [ "$local_ok" -eq 1 ]; then
-                inject_file "$TMP_DIR/shaders.bin" "${FF_DIR}/gameassetbundles/shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D"
-                inject_file "$TMP_DIR/optional_shader.bin" "${FF_DIR}/optionalavatarres/gameassetbundles/optionalavatarres_commonab_shader.YXsllDlwiET7~2Flua2jgC6ucxzic~3D"
-                inject_file "$TMP_DIR/fileinfo" "${FF_DIR}/fileinfo"
-                inject_file "$TMP_DIR/fileinfo_opt" "${FF_DIR}/optionalavatarres/fileinfo"
-                ESTADO[3]=1
-                echo -e "\n${GREEN}[+] Pacote Completo Injetado! Abra o Free Fire.${NC}"
-            else
-                echo -e "\n${RED}[!] Falha na injeção. Arquivos inválidos ou rede fora.${NC}"
+            adb shell "mkdir -p ${FF_DIR}/gameassetbundles"
+            adb shell "mkdir -p ${FF_DIR}/optionalavatarres/gameassetbundles"
+            
+            # Injeção (Opção 1 ou 3)
+            if [ "$FUNC_OPT" == "1" ] || [ "$FUNC_OPT" == "3" ]; then
+                echo -e "${CYAN}  [+] Injetando Shaders Principais...${NC}"
+                adb push "${TMP_DIR}/arb1.bin" "${FF_DIR}/gameassetbundles/shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D" >/dev/null
+                adb push "${TMP_DIR}/arb2.bin" "${FF_DIR}/gameassetbundles/shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D" >/dev/null
+                
+                echo -e "${CYAN}  [+] Injetando Shaders de Avatar...${NC}"
+                adb push "${TMP_DIR}/arb3.bin" "${FF_DIR}/optionalavatarres/gameassetbundles/optionalavatarres_commonab_shader.YXsllDlwiET7~2Flua2jgC6ucxzic~3D" >/dev/null
+                adb push "${TMP_DIR}/arb4.bin" "${FF_DIR}/optionalavatarres/gameassetbundles/optionalavatarres_commonab_shader.YXsllDlwiET7~2Flua2jgC6ucxzic~3D" >/dev/null
             fi
+
+            # Injeção (Opção 2 ou 3)
+            if [ "$FUNC_OPT" == "2" ] || [ "$FUNC_OPT" == "3" ]; then
+                echo -e "${CYAN}  [+] Injetando Fileinfos (Aimbot)...${NC}"
+                adb push "${TMP_DIR}/arb3.bin" "${FF_DIR}/fileinfo" >/dev/null
+                adb push "${TMP_DIR}/arb4.bin" "${FF_DIR}/optionalavatarres/fileinfo" >/dev/null
+            fi
+
+            ESTADO[$FUNC_OPT]=1
+            echo -e "\n${GREEN}[+] Módulo Injetado! Abra o Free Fire.${NC}"
+            
+            # Limpa os temporários
+            rm -rf "$TMP_DIR"
             ;;
         0)
             printf "\033c"
-            rm -rf "$TMP_DIR" 2>/dev/null
             exit 0
             ;;
         *)
@@ -271,6 +216,6 @@ while true; do
             ;;
     esac
 
-    echo -e "\n${CYAN}Pressione ENTER para voltar ao menu...${NC}"
+    echo -e "\n${CYAN}Pressione ENTER para continuar...${NC}"
     read -r < /dev/tty
 done
