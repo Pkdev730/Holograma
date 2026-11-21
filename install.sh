@@ -10,7 +10,6 @@ FF_DATA_ROOT="/storage/emulated/0/Android/data/${FF_PACKAGE}"
 FF_ASSETS_DIR="${FF_DATA_ROOT}/files/contentcache/Optional/android"
 
 # --- LINK DO ZIP NO GITHUB ---
-# Substitua pelo link Raw exato do arquivo HOLOGRAMA VIP.zip no seu repo
 REMOTE_ZIP="https://raw.githubusercontent.com/Pkdev730/Holograma/main/HOLOGRAMA%20VIP.zip"
 TMP_DIR="/data/data/com.termux/files/usr/tmp/ghost_cloud"
 
@@ -95,7 +94,7 @@ while true; do
     read -r FUNC_OPT < /dev/tty
 
     if [ "$FUNC_OPT" == "99" ]; then
-        echo -e "\n${RED}[!] AVISO: Isso vai limpar os mods e restaurar o Free Fire original.${NC}"
+        echo -e "\n${RED}[!] AVISO: Isso vai fechar o jogo e restaurar o Free Fire original.${NC}"
         echo -n "Tem certeza? (s/n): "
         read -r CONFIRMA < /dev/tty
 
@@ -119,7 +118,6 @@ while true; do
             echo -e "${YELLOW}[*] Extraindo arquivos...${NC}"
             unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
 
-            # Procura a pasta com.dts.freefireth dentro do que foi extraído
             SRC_RESTORE=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" | head -n 1)
 
             if [ -z "$SRC_RESTORE" ]; then
@@ -128,12 +126,8 @@ while true; do
                 continue
             fi
 
-            echo -e "${CYAN}  [+] Limpando modificações antigas...${NC}"
-            adb shell "rm -rf ${FF_ASSETS_DIR}/gameassetbundles"
-            adb shell "rm -rf ${FF_ASSETS_DIR}/optionalavatarres"
-            
             echo -e "${CYAN}  [+] Restaurando originais via ADB...${NC}"
-            # Empurra o conteúdo da pasta com.dts.freefireth pra raiz do jogo
+            # Empurra o conteúdo da pasta com.dts.freefireth pra raiz do jogo sem apagar nada antes
             adb push "${SRC_RESTORE}/." "${FF_DATA_ROOT}/" > /dev/null
             
             echo -e "${GREEN}[+] Bypass concluído! Originais restaurados.${NC}"
@@ -166,7 +160,6 @@ while true; do
             echo -e "${YELLOW}[*] Extraindo mod...${NC}"
             unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
 
-            # Procura o primeiro arquivo válido dentro da pasta HOLOGRAMA FREE FIRE NORMAL
             SRC_FILE=$(find "${TMP_DIR}/content" -type f -path "*HOLOGRAMA FREE FIRE NORMAL*" | head -n 1)
 
             if [ -z "$SRC_FILE" ]; then
@@ -175,16 +168,12 @@ while true; do
                 continue
             fi
 
-            echo -e "${YELLOW}[*] Injetando mods via ADB...${NC}"
+            echo -e "${YELLOW}[*] Injetando mod via ADB...${NC}"
             adb shell "mkdir -p ${FF_ASSETS_DIR}/gameassetbundles"
-            adb shell "mkdir -p ${FF_ASSETS_DIR}/optionalavatarres/gameassetbundles"
 
             echo -e "${CYAN}  [+] Injetando Shaders Principais...${NC}"
             adb push "$SRC_FILE" "${FF_ASSETS_DIR}/gameassetbundles/shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D" > /dev/null
             
-            echo -e "${CYAN}  [+] Injetando Shaders de Avatar...${NC}"
-            adb push "$SRC_FILE" "${FF_ASSETS_DIR}/optionalavatarres/gameassetbundles/optionalavatarres_commonab_shader.YXsllDlwiET7~2Flua2jgC6ucxzic~3D" > /dev/null
-
             ESTADO[1]=1
             echo -e "\n${GREEN}[+] Holograma Injetado! Abra o Free Fire.${NC}"
             
