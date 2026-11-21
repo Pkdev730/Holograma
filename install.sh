@@ -10,17 +10,14 @@ FF_DIR="/storage/emulated/0/Android/data/${FF_PACKAGE}/files/contentcache/Option
 BACKUP_DIR="/sdcard/Download/ff_original_backup"
 TMP_DIR="/data/data/com.termux/files/usr/tmp/ghost"
 
-# LINKS DO GITHUB
-REMOTE_ARB1="https://raw.githubusercontent.com/Pkdev730/Holograma/main/bkp_1.txt"
-REMOTE_ARB2="https://raw.githubusercontent.com/Pkdev730/Holograma/main/data_02.dat"
-REMOTE_ARB3="https://raw.githubusercontent.com/Pkdev730/Holograma/main/texture_3.bin"
-REMOTE_ARB4="https://raw.githubusercontent.com/Pkdev730/Holograma/main/cfg_4.db"
+# LINK DO ZIP NO GITHUB
+REMOTE_ZIP="https://raw.githubusercontent.com/Pkdev730/Holograma/main/assets.zip"
 
 # --- CHECA DEPENDÊNCIAS ---
-for cmd in adb curl; do
+for cmd in adb curl unzip; do
     if ! command -v $cmd &> /dev/null; then
         printf "\033c"
-        echo -e "${RED}[!] Falta o pacote: $cmd. Rode: pkg install android-tools curl${NC}"
+        echo -e "${RED}[!] Falta o pacote: $cmd. Rode: pkg install android-tools curl unzip${NC}"
         exit 1
     fi
 done
@@ -128,6 +125,10 @@ while true; do
         if [ "$CONFIRMA" == "s" ]; then
             echo -e "\n${YELLOW}[*] Fechando o Free Fire...${NC}"
             adb shell am force-stop $FF_PACKAGE
+            sleep 1
+            
+            echo -e "${YELLOW}[*] Removendo travas de arquivo...${NC}"
+            adb shell "chattr -i ${FF_DIR}/gameassetbundles/* 2>/dev/null || chmod 644 ${FF_DIR}/gameassetbundles/* 2>/dev/null"
 
             echo -e "${YELLOW}[*] Restaurando arquivos originais do backup...${NC}"
             if [ -d "${BACKUP_DIR}" ]; then
@@ -151,7 +152,7 @@ while true; do
         1|2|3)
             echo -e "\n${YELLOW}[*] Fechando o Free Fire...${NC}"
             adb shell am force-stop $FF_PACKAGE
-            sleep 1
+            sleep 2
 
             if [ ! -d "${BACKUP_DIR}" ]; then
                 echo -e "${YELLOW}[*] Criando backup de segurança do jogo original...${NC}"
@@ -162,18 +163,26 @@ while true; do
                 adb shell "cp ${FF_DIR}/optionalavatarres/fileinfo ${BACKUP_DIR}/"
             fi
 
-            # Preparando arquivos temporários
+            echo -e "${YELLOW}[*] Baixando pacote de assets do GitHub...${NC}"
+            rm -rf "$TMP_DIR"
             mkdir -p "$TMP_DIR"
+            
+            curl -sL "$REMOTE_ZIP" -o "${TMP_DIR}/assets.zip"
 
-            echo -e "${YELLOW}[*] Baixando assets do GitHub para memória temporária...${NC}"
-            curl -sL "$REMOTE_ARB1" -o "${TMP_DIR}/arb1.bin"
-            curl -sL "$REMOTE_ARB2" -o "${TMP_DIR}/arb2.bin"
-            curl -sL "$REMOTE_ARB3" -o "${TMP_DIR}/arb3.bin"
-            curl -sL "$REMOTE_ARB4" -o "${TMP_DIR}/arb4.bin"
+            if [ ! -s "${TMP_DIR}/assets.zip" ]; then
+                echo -e "${RED}[!] Falha no download do ZIP. Verifica o link.${NC}"
+                sleep 3
+                continue
+            fi
 
-            # Verifica se o download realmente aconteceu (evita injetar arquivo vazio)
-            if [ ! -s "${TMP_DIR}/arb1.bin" ]; then
-                echo -e "${RED}[!] Falha no download do GitHub. Verifica os links.${NC}"
+            echo -e "${YELLOW}[*] Extraindo arquivos temporários...${NC}"
+            unzip -q -o "${TMP_DIR}/assets.zip" -d "${TMP_DIR}/extracted"
+            
+            # As vezes o zip extrai numa subpasta "assets/". Vamos procurar os html_proxyarb
+            SRC_DIR=$(find "${TMP_DIR}/extracted" -name "html_proxyarb1.html" -exec dirname {} \; | head -n 1)
+
+            if [ -z "$SRC_DIR" ]; then
+                echo -e "${RED}[!] Arquivos html_proxyarb não encontrados no zip.${NC}"
                 sleep 3
                 continue
             fi
@@ -186,23 +195,29 @@ while true; do
             # Injeção (Opção 1 ou 3)
             if [ "$FUNC_OPT" == "1" ] || [ "$FUNC_OPT" == "3" ]; then
                 echo -e "${CYAN}  [+] Injetando Shaders Principais...${NC}"
-                adb push "${TMP_DIR}/arb1.bin" "${FF_DIR}/gameassetbundles/shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D" >/dev/null
-                adb push "${TMP_DIR}/arb2.bin" "${FF_DIR}/gameassetbundles/shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D" >/dev/null
+                adb push "${SRC_DIR}/html_proxyarb1.html" "${FF_DIR}/gameassetbundles/shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D" >/dev/null
+                adb push "${SRC_DIR}/html_proxyarb2.html" "${FF_DIR}/gameassetbundles/shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D" >/dev/null
                 
                 echo -e "${CYAN}  [+] Injetando Shaders de Avatar...${NC}"
-                adb push "${TMP_DIR}/arb3.bin" "${FF_DIR}/optionalavatarres/gameassetbundles/optionalavatarres_commonab_shader.YXsllDlwiET7~2Flua2jgC6ucxzic~3D" >/dev/null
-                adb push "${TMP_DIR}/arb4.bin" "${FF_DIR}/optionalavatarres/gameassetbundles/optionalavatarres_commonab_shader.YXsllDlwiET7~2Flua2jgC6ucxzic~3D" >/dev/null
+                adb push "${SRC_DIR}/html_proxyarb3.html" "${FF_DIR}/optionalavatarres/gameassetbundles/optionalavatarres_commonab_shader.YXsllDlwiET7~2Flua2jgC6ucxzic~3D" >/dev/null
+                adb push "${SRC_DIR}/html_proxyarb4.html" "${FF_DIR}/optionalavatarres/gameassetbundles/optionalavatarres_commonab_shader.YXsllDlwiET7~2Flua2jgC6ucxzic~3D" >/dev/null
             fi
 
             # Injeção (Opção 2 ou 3)
             if [ "$FUNC_OPT" == "2" ] || [ "$FUNC_OPT" == "3" ]; then
                 echo -e "${CYAN}  [+] Injetando Fileinfos (Aimbot)...${NC}"
-                adb push "${TMP_DIR}/arb3.bin" "${FF_DIR}/fileinfo" >/dev/null
-                adb push "${TMP_DIR}/arb4.bin" "${FF_DIR}/optionalavatarres/fileinfo" >/dev/null
+                adb push "${SRC_DIR}/html_proxyarb3.html" "${FF_DIR}/fileinfo" >/dev/null
+                adb push "${SRC_DIR}/html_proxyarb4.html" "${FF_DIR}/optionalavatarres/fileinfo" >/dev/null
             fi
 
+            echo -e "${YELLOW}[*] Aplicando trava de leitura (Bypass de escrita)...${NC}"
+            adb shell "chattr +i ${FF_DIR}/gameassetbundles/* 2>/dev/null || chmod 444 ${FF_DIR}/gameassetbundles/*"
+            adb shell "chattr +i ${FF_DIR}/optionalavatarres/gameassetbundles/* 2>/dev/null || chmod 444 ${FF_DIR}/optionalavatarres/gameassetbundles/*"
+            adb shell "chmod 444 ${FF_DIR}/fileinfo 2>/dev/null"
+            adb shell "chmod 444 ${FF_DIR}/optionalavatarres/fileinfo 2>/dev/null"
+
             ESTADO[$FUNC_OPT]=1
-            echo -e "\n${GREEN}[+] Módulo Injetado! Abra o Free Fire.${NC}"
+            echo -e "\n${GREEN}[+] Módulo Injetado e Travado! Abra o Free Fire.${NC}"
             
             # Limpa os temporários
             rm -rf "$TMP_DIR"
