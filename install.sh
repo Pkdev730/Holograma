@@ -12,9 +12,9 @@ FF_ASSETS_DIR="${FF_DATA_ROOT}/files/contentcache/Optional/android"
 REMOTE_ZIP="https://raw.githubusercontent.com/Pkdev730/Holograma/main/HOLOGRAMA%20VIP.zip"
 TMP_DIR="/data/data/com.termux/files/usr/tmp/ghost_cloud"
 
-# Nomes exatos dos shaders que o jogo lê
-SHADER_ALVO="shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D"
-SHADER_MOD="shaders.pedroomods~vip~3D" # O arquivo que fica zumbi na pasta
+# Nomes exatos
+SHADER_ORIGINAL="shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D"
+SHADER_MOD="shaders.pedroomods~vip~3D"
 
 # --- CHECA DEPENDÊNCIAS ---
 for cmd in adb curl unzip find; do
@@ -121,21 +121,22 @@ while true; do
             echo -e "${YELLOW}[*] Extraindo arquivos...${NC}"
             unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
 
-            SRC_RESTORE=$(find "${TMP_DIR}/content" -type f -name "$SHADER_ALVO" -path "*REMOVER*" | head -n 1)
+            # Busca o arquivo original na pasta REMOVER
+            SRC_RESTORE=$(find "${TMP_DIR}/content" -type f -name "$SHADER_ORIGINAL" -path "*REMOVER*" | head -n 1)
 
             if [ -z "$SRC_RESTORE" ]; then
-                echo -e "${RED}[!] Arquivo $SHADER_ALVO não encontrado na pasta REMOVER.${NC}"
+                echo -e "${RED}[!] Arquivo $SHADER_ORIGINAL não encontrado na pasta REMOVER.${NC}"
                 sleep 3
                 continue
             fi
 
             echo -e "${CYAN}  [+] Limpando shader modificado antigo...${NC}"
-            # Apaga o mod velho que ficou zumbi
+            # Apaga o mod
             adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}'"
 
             echo -e "${CYAN}  [+] Restaurando arquivo original via ADB...${NC}"
-            # Envia o arquivo original com o nome EXATO do shader alvo do jogo
-            adb push "$SRC_RESTORE" "${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ALVO}" > /dev/null
+            # Envia o original com o nome exato dele
+            adb push "$SRC_RESTORE" "${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ORIGINAL}" > /dev/null
             
             echo -e "${GREEN}[+] Bypass concluído! Original restaurado e mod antigo apagado.${NC}"
             
@@ -167,15 +168,11 @@ while true; do
             echo -e "${YELLOW}[*] Extraindo mod...${NC}"
             unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
 
+            # Busca o mod na pasta NORMAL
             SRC_FILE=$(find "${TMP_DIR}/content" -type f -name "$SHADER_MOD" -path "*HOLOGRAMA FREE FIRE NORMAL*" | head -n 1)
 
             if [ -z "$SRC_FILE" ]; then
-                # Fallback caso o nome do arquivo na pasta do mod tenha mudado
-                SRC_FILE=$(find "${TMP_DIR}/content" -type f -path "*HOLOGRAMA FREE FIRE NORMAL*" | head -n 1)
-            fi
-
-            if [ -z "$SRC_FILE" ]; then
-                echo -e "${RED}[!] Nenhum arquivo encontrado na pasta do mod.${NC}"
+                echo -e "${RED}[!] Arquivo $SHADER_MOD não encontrado na pasta do mod.${NC}"
                 sleep 3
                 continue
             fi
@@ -184,8 +181,8 @@ while true; do
             adb shell "mkdir -p ${FF_ASSETS_DIR}/gameassetbundles"
 
             echo -e "${CYAN}  [+] Injetando Shaders Principais...${NC}"
-            # Aqui ele força o nome do mod a ser o nome do shader principal que o jogo lê
-            adb push "$SRC_FILE" "${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ALVO}" > /dev/null
+            # Envia o MOD com o nome exato DELE
+            adb push "$SRC_FILE" "${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}" > /dev/null
             
             ESTADO[1]=1
             echo -e "\n${GREEN}[+] Holograma Injetado! Abra o Free Fire.${NC}"
