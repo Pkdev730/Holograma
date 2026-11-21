@@ -128,8 +128,9 @@ while true; do
                 continue
             fi
 
-            echo -e "${CYAN}  [+] Limpando shader modificado zumbi...${NC}"
-            # Apaga o mod do celular ANTES de puxar o original da nuvem
+            echo -e "${CYAN}  [+] Removendo shaders antigos...${NC}"
+            # Apaga SÓ os dois shaders, preserva o resto
+            adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ORIGINAL}'"
             adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}'"
 
             echo -e "${CYAN}  [+] Restaurando a pasta original no Android/data...${NC}"
@@ -173,9 +174,10 @@ while true; do
                 continue
             fi
 
-            echo -e "${CYAN}  [+] Limpando shader original antigo...${NC}"
-            # Apaga o original ANTES de puxar o mod da nuvem
+            echo -e "${CYAN}  [+] Removendo shaders antigos...${NC}"
+            # Apaga SÓ os dois shaders, preserva o resto
             adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ORIGINAL}'"
+            adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}'"
 
             echo -e "${CYAN}  [+] Injetando a pasta do mod no Android/data...${NC}"
             adb push "$SRC_MOD/." "${FF_DATA_ROOT}/"
