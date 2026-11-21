@@ -83,116 +83,111 @@ while true; do
         if [ "${ESTADO[$1]}" -eq 1 ]; then echo -e "${GREEN}[ON]${NC}"; else echo -e "${RED}[OFF]${NC}"; fi
     }
 
-    echo -e "${CYAN}┌── MODS FREE FIRE (ZIP CLOUD) ──────────┐${NC}"
+    echo -e "${CYAN}┌── MODS FREE FIRE ──────────────────────┐${NC}"
     echo -e "  [1] Injetar ESP/Chams (Shaders) $(status 1)"
+    echo -e "  [2] Restaurar Holograma Original"
     echo -e "${CYAN}└────────────────────────────────────────┘${NC}"
 
     echo -e "\n${RED}┌── DESCONECTAR / LIMPAR (BYPASS) ───────┐${NC}"
-    echo -e "  [99] Restaurar Originais via ZIP"
+    echo -e "  [99] Limpar Rastros e Fechar Sessão"
     echo -e "${RED}└────────────────────────────────────────┘${NC}"
 
     echo -e "\n  [0] Encerrar Sessão"
     echo -n "  » Selecione: "
     read -r FUNC_OPT < /dev/tty
 
-    if [ "$FUNC_OPT" == "99" ]; then
-        echo -e "\n${RED}[!] AVISO: Isso vai fechar o jogo e restaurar o Free Fire original.${NC}"
-        echo -n "Tem certeza? (s/n): "
-        read -r CONFIRMA < /dev/tty
-
-        if [ "$CONFIRMA" == "s" ]; then
-            echo -e "\n${YELLOW}[*] Fechando o Free Fire...${NC}"
-            adb shell am force-stop $FF_PACKAGE
-            sleep 1
-
-            echo -e "${YELLOW}[*] Baixando o pacote principal...${NC}"
-            rm -rf "$TMP_DIR"
-            mkdir -p "$TMP_DIR/download"
-            
-            curl -sL "$REMOTE_ZIP" -o "${TMP_DIR}/master.zip"
-
-            if [ ! -s "${TMP_DIR}/master.zip" ]; then
-                echo -e "${RED}[!] Falha ao baixar o ZIP do GitHub. Verifique o link.${NC}"
-                sleep 3
-                continue
-            fi
-
-            echo -e "${YELLOW}[*] Extraindo arquivos...${NC}"
-            unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
-
-            SRC_RESTORE=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" -path "*REMOVER*" | head -n 1)
-
-            if [ -z "$SRC_RESTORE" ]; then
-                echo -e "${RED}[!] Pasta com.dts.freefireth não encontrada no pacote de RESTORE.${NC}"
-                sleep 3
-                continue
-            fi
-
-            echo -e "${CYAN}  [+] Removendo shaders antigos...${NC}"
-            # Apaga SÓ os dois shaders, preserva o resto
-            adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ORIGINAL}'"
-            adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}'"
-
-            echo -e "${CYAN}  [+] Restaurando a pasta original no Android/data...${NC}"
-            adb push "$SRC_RESTORE/." "${FF_DATA_ROOT}/"
-            
-            echo -e "${GREEN}[+] Bypass concluído! Originais restaurados.${NC}"
-            
-            ESTADO[1]=0
-            rm -rf "$TMP_DIR"
-            sleep 3
-            continue
-        fi
-    fi
-
     case $FUNC_OPT in
+        99)
+            echo -e "\n${RED}[!] AVISO: Vai fechar o jogo e apagar todas as pastas temporárias e caches locais.${NC}"
+            echo -n "Tem certeza? (s/n): "
+            read -r CONFIRMA < /dev/tty
+
+            if [ "$CONFIRMA" == "s" ]; then
+                echo -e "\n${YELLOW}[*] Fechando o Free Fire...${NC}"
+                adb shell am force-stop $FF_PACKAGE
+                sleep 1
+
+                echo -e "${YELLOW}[*] Limpando rastros e pastas temporárias...${NC}"
+                # Limpa o cache do Termux
+                rm -rf "$TMP_DIR"
+                # Se você tiver alguma pasta de backup temporária no celular, é aqui que ela cai
+                rm -rf "/sdcard/Download/ff_original_backup" 
+                
+                echo -e "${GREEN}[+] Faxina concluída! Rastros apagados.${NC}"
+                ESTADO[1]=0
+                sleep 3
+            fi
+            ;;
+
         1)
             echo -e "\n${YELLOW}[*] Fechando o Free Fire...${NC}"
             adb shell am force-stop $FF_PACKAGE
             sleep 1
 
-            echo -e "${YELLOW}[*] Baixando o pacote principal...${NC}"
+            echo -e "${YELLOW}[*] Baixando e injetando mod da nuvem...${NC}"
             rm -rf "$TMP_DIR"
             mkdir -p "$TMP_DIR/download"
-            
             curl -sL "$REMOTE_ZIP" -o "${TMP_DIR}/master.zip"
 
             if [ ! -s "${TMP_DIR}/master.zip" ]; then
-                echo -e "${RED}[!] Falha ao baixar o ZIP do GitHub.${NC}"
-                sleep 3
-                continue
+                echo -e "${RED}[!] Falha ao baixar o ZIP.${NC}"; sleep 3; continue
             fi
 
-            echo -e "${YELLOW}[*] Extraindo mod...${NC}"
             unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
-
             SRC_MOD=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" -path "*HOLOGRAMA FREE FIRE NORMAL*" | head -n 1)
 
             if [ -z "$SRC_MOD" ]; then
-                echo -e "${RED}[!] Pasta com.dts.freefireth não encontrada no pacote do MOD.${NC}"
-                sleep 3
-                continue
+                echo -e "${RED}[!] Pasta do MOD não encontrada.${NC}"; sleep 3; continue
             fi
 
-            echo -e "${CYAN}  [+] Removendo shaders antigos...${NC}"
-            # Apaga SÓ os dois shaders, preserva o resto
+            echo -e "${CYAN}  [+] Limpando shaders antigos...${NC}"
             adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ORIGINAL}'"
             adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}'"
-
-            echo -e "${CYAN}  [+] Injetando a pasta do mod no Android/data...${NC}"
-            adb push "$SRC_MOD/." "${FF_DATA_ROOT}/"
+            
+            echo -e "${CYAN}  [+] Injetando holograma...${NC}"
+            adb push "$SRC_MOD/." "${FF_DATA_ROOT}/" > /dev/null
             
             ESTADO[1]=1
             echo -e "\n${GREEN}[+] Holograma Injetado! Abra o Free Fire.${NC}"
-            
             rm -rf "$TMP_DIR"
             ;;
+
+        2)
+            echo -e "\n${YELLOW}[*] Fechando o Free Fire...${NC}"
+            adb shell am force-stop $FF_PACKAGE
+            sleep 1
+
+            echo -e "${YELLOW}[*] Baixando o pacote de restauração da nuvem...${NC}"
+            rm -rf "$TMP_DIR"
+            mkdir -p "$TMP_DIR/download"
+            curl -sL "$REMOTE_ZIP" -o "${TMP_DIR}/master.zip"
+
+            if [ ! -s "${TMP_DIR}/master.zip" ]; then
+                echo -e "${RED}[!] Falha ao baixar o ZIP.${NC}"; sleep 3; continue
+            fi
+
+            unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
+            SRC_RESTORE=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" -path "*REMOVER HOLOGRAMA FREE FIRE NORMAL*" | head -n 1)
+
+            if [ -z "$SRC_RESTORE" ]; then
+                echo -e "${RED}[!] Pasta REMOVER não encontrada no ZIP.${NC}"; sleep 3; continue
+            fi
+
+            echo -e "${CYAN}  [+] Limpando shaders modificados...${NC}"
+            adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ORIGINAL}'"
+            adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}'"
+
+            echo -e "${CYAN}  [+] Restaurando originais da nuvem...${NC}"
+            adb push "$SRC_RESTORE/." "${FF_DATA_ROOT}/" > /dev/null
+            
+            ESTADO[1]=0
+            echo -e "\n${GREEN}[+] Holograma Desativado! Original de volta.${NC}"
+            rm -rf "$TMP_DIR"
+            ;;
+
         0)
             printf "\033c"
             exit 0
-            ;;
-        *)
-            continue
             ;;
     esac
 
