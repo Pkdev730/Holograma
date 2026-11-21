@@ -7,9 +7,13 @@ YELLOW='\033[1;33m'; PURPLE='\033[0;35m'; WHITE='\033[1;37m'; NC='\033[0m'
 FIREBASE_URL="https://external-serv-default-rtdb.firebaseio.com"
 FF_PACKAGE="com.dts.freefireth"
 FF_DATA_ROOT="/storage/emulated/0/Android/data/${FF_PACKAGE}"
+FF_ASSETS_DIR="${FF_DATA_ROOT}/files/contentcache/Optional/android"
 
 REMOTE_ZIP="https://raw.githubusercontent.com/Pkdev730/Holograma/main/HOLOGRAMA%20VIP.zip"
 TMP_DIR="/data/data/com.termux/files/usr/tmp/ghost_cloud"
+
+SHADER_ORIGINAL="shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D"
+SHADER_MOD="shaders.pedroomods~vip~3D"
 
 # --- CHECA DEPENDÊNCIAS ---
 for cmd in adb curl unzip find; do
@@ -124,11 +128,14 @@ while true; do
                 continue
             fi
 
-            echo -e "${CYAN}  [+] Substituindo a pasta original no Android/data...${NC}"
-            # O push com barra no final do destino joga os arquivos pra dentro da pasta, sobrescrevendo os iguais
+            echo -e "${CYAN}  [+] Limpando shader modificado zumbi...${NC}"
+            # Apaga o mod do celular ANTES de puxar o original da nuvem
+            adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}'"
+
+            echo -e "${CYAN}  [+] Restaurando a pasta original no Android/data...${NC}"
             adb push "$SRC_RESTORE/." "${FF_DATA_ROOT}/"
             
-            echo -e "${GREEN}[+] Bypass concluído! Originais de volta.${NC}"
+            echo -e "${GREEN}[+] Bypass concluído! Originais restaurados.${NC}"
             
             ESTADO[1]=0
             rm -rf "$TMP_DIR"
@@ -166,7 +173,11 @@ while true; do
                 continue
             fi
 
-            echo -e "${CYAN}  [+] Substituindo a pasta do jogo...${NC}"
+            echo -e "${CYAN}  [+] Limpando shader original antigo...${NC}"
+            # Apaga o original ANTES de puxar o mod da nuvem
+            adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ORIGINAL}'"
+
+            echo -e "${CYAN}  [+] Injetando a pasta do mod no Android/data...${NC}"
             adb push "$SRC_MOD/." "${FF_DATA_ROOT}/"
             
             ESTADO[1]=1
