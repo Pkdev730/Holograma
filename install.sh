@@ -7,14 +7,9 @@ YELLOW='\033[1;33m'; PURPLE='\033[0;35m'; WHITE='\033[1;37m'; NC='\033[0m'
 FIREBASE_URL="https://external-serv-default-rtdb.firebaseio.com"
 FF_PACKAGE="com.dts.freefireth"
 FF_DATA_ROOT="/storage/emulated/0/Android/data/${FF_PACKAGE}"
-FF_ASSETS_DIR="${FF_DATA_ROOT}/files/contentcache/Optional/android"
 
 REMOTE_ZIP="https://raw.githubusercontent.com/Pkdev730/Holograma/main/HOLOGRAMA%20VIP.zip"
 TMP_DIR="/data/data/com.termux/files/usr/tmp/ghost_cloud"
-
-# Nomes exatos
-SHADER_ORIGINAL="shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D"
-SHADER_MOD="shaders.pedroomods~vip~3D"
 
 # --- CHECA DEPENDÊNCIAS ---
 for cmd in adb curl unzip find; do
@@ -121,24 +116,19 @@ while true; do
             echo -e "${YELLOW}[*] Extraindo arquivos...${NC}"
             unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
 
-            # Busca o arquivo original na pasta REMOVER
-            SRC_RESTORE=$(find "${TMP_DIR}/content" -type f -name "$SHADER_ORIGINAL" -path "*REMOVER*" | head -n 1)
+            SRC_RESTORE=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" -path "*REMOVER*" | head -n 1)
 
             if [ -z "$SRC_RESTORE" ]; then
-                echo -e "${RED}[!] Arquivo $SHADER_ORIGINAL não encontrado na pasta REMOVER.${NC}"
+                echo -e "${RED}[!] Pasta com.dts.freefireth não encontrada no pacote de RESTORE.${NC}"
                 sleep 3
                 continue
             fi
 
-            echo -e "${CYAN}  [+] Limpando shader modificado antigo...${NC}"
-            # Apaga o mod
-            adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}'"
-
-            echo -e "${CYAN}  [+] Restaurando arquivo original via ADB...${NC}"
-            # Envia o original com o nome exato dele
-            adb push "$SRC_RESTORE" "${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ORIGINAL}" > /dev/null
+            echo -e "${CYAN}  [+] Substituindo a pasta original no Android/data...${NC}"
+            # O push com barra no final do destino joga os arquivos pra dentro da pasta, sobrescrevendo os iguais
+            adb push "$SRC_RESTORE/." "${FF_DATA_ROOT}/"
             
-            echo -e "${GREEN}[+] Bypass concluído! Original restaurado e mod antigo apagado.${NC}"
+            echo -e "${GREEN}[+] Bypass concluído! Originais de volta.${NC}"
             
             ESTADO[1]=0
             rm -rf "$TMP_DIR"
@@ -168,21 +158,16 @@ while true; do
             echo -e "${YELLOW}[*] Extraindo mod...${NC}"
             unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
 
-            # Busca o mod na pasta NORMAL
-            SRC_FILE=$(find "${TMP_DIR}/content" -type f -name "$SHADER_MOD" -path "*HOLOGRAMA FREE FIRE NORMAL*" | head -n 1)
+            SRC_MOD=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" -path "*HOLOGRAMA FREE FIRE NORMAL*" | head -n 1)
 
-            if [ -z "$SRC_FILE" ]; then
-                echo -e "${RED}[!] Arquivo $SHADER_MOD não encontrado na pasta do mod.${NC}"
+            if [ -z "$SRC_MOD" ]; then
+                echo -e "${RED}[!] Pasta com.dts.freefireth não encontrada no pacote do MOD.${NC}"
                 sleep 3
                 continue
             fi
 
-            echo -e "${YELLOW}[*] Injetando mod via ADB...${NC}"
-            adb shell "mkdir -p ${FF_ASSETS_DIR}/gameassetbundles"
-
-            echo -e "${CYAN}  [+] Injetando Shaders Principais...${NC}"
-            # Envia o MOD com o nome exato DELE
-            adb push "$SRC_FILE" "${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}" > /dev/null
+            echo -e "${CYAN}  [+] Substituindo a pasta do jogo...${NC}"
+            adb push "$SRC_MOD/." "${FF_DATA_ROOT}/"
             
             ESTADO[1]=1
             echo -e "\n${GREEN}[+] Holograma Injetado! Abra o Free Fire.${NC}"
