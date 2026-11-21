@@ -6,7 +6,8 @@ YELLOW='\033[1;33m'; PURPLE='\033[0;35m'; WHITE='\033[1;37m'; NC='\033[0m'
 # --- CONFIGURAÇÕES ---
 FIREBASE_URL="https://external-serv-default-rtdb.firebaseio.com"
 FF_PACKAGE="com.dts.freefireth"
-FF_DIR="/storage/emulated/0/Android/data/${FF_PACKAGE}/files/contentcache/Optional/android"
+FF_ASSETS_DIR="/storage/emulated/0/Android/data/${FF_PACKAGE}/files/contentcache/Optional/android"
+MOD_DIR="/sdcard/Download/assets"
 BACKUP_DIR="/sdcard/Download/ff_original_backup"
 TMP_DIR="/data/data/com.termux/files/usr/tmp/ghost"
 
@@ -126,20 +127,17 @@ while true; do
             echo -e "\n${YELLOW}[*] Fechando o Free Fire...${NC}"
             adb shell am force-stop $FF_PACKAGE
             sleep 1
-            
-            echo -e "${YELLOW}[*] Removendo travas de arquivo...${NC}"
-            adb shell "chattr -i ${FF_DIR}/gameassetbundles/* 2>/dev/null || chmod 644 ${FF_DIR}/gameassetbundles/* 2>/dev/null"
 
             echo -e "${YELLOW}[*] Restaurando arquivos originais do backup...${NC}"
             if [ -d "${BACKUP_DIR}" ]; then
-                adb shell "rm -rf ${FF_DIR}/gameassetbundles"
-                adb shell "rm -rf ${FF_DIR}/optionalavatarres"
-                adb shell "cp -r ${BACKUP_DIR}/* ${FF_DIR}/"
+                adb shell "rm -rf ${FF_ASSETS_DIR}/gameassetbundles"
+                adb shell "rm -rf ${FF_ASSETS_DIR}/optionalavatarres"
+                adb shell "cp -r ${BACKUP_DIR}/* ${FF_ASSETS_DIR}/"
                 echo -e "${GREEN}[+] Bypass concluído! Originais restaurados.${NC}"
             else
                 echo -e "${RED}[!] Backup não encontrado. Limpando cache pra o jogo baixar originais...${NC}"
-                adb shell "rm -rf ${FF_DIR}/gameassetbundles"
-                adb shell "rm -rf ${FF_DIR}/optionalavatarres"
+                adb shell "rm -rf ${FF_ASSETS_DIR}/gameassetbundles"
+                adb shell "rm -rf ${FF_ASSETS_DIR}/optionalavatarres"
             fi
             
             for i in 1 2 3; do ESTADO[$i]=0; done
@@ -152,21 +150,21 @@ while true; do
         1|2|3)
             echo -e "\n${YELLOW}[*] Fechando o Free Fire...${NC}"
             adb shell am force-stop $FF_PACKAGE
-            sleep 2
+            sleep 1
 
             if [ ! -d "${BACKUP_DIR}" ]; then
                 echo -e "${YELLOW}[*] Criando backup de segurança do jogo original...${NC}"
                 adb shell "mkdir -p ${BACKUP_DIR}"
-                adb shell "cp -r ${FF_DIR}/gameassetbundles ${BACKUP_DIR}/"
-                adb shell "cp -r ${FF_DIR}/optionalavatarres ${BACKUP_DIR}/"
-                adb shell "cp ${FF_DIR}/fileinfo ${BACKUP_DIR}/"
-                adb shell "cp ${FF_DIR}/optionalavatarres/fileinfo ${BACKUP_DIR}/"
+                adb shell "cp -r ${FF_ASSETS_DIR}/gameassetbundles ${BACKUP_DIR}/"
+                adb shell "cp -r ${FF_ASSETS_DIR}/optionalavatarres ${BACKUP_DIR}/"
+                adb shell "cp ${FF_ASSETS_DIR}/fileinfo ${BACKUP_DIR}/"
+                adb shell "cp ${FF_ASSETS_DIR}/optionalavatarres/fileinfo ${BACKUP_DIR}/"
             fi
 
-            echo -e "${YELLOW}[*] Baixando pacote de assets do GitHub...${NC}"
+            # === DOWNLOAD DO ZIP VIA GITHUB E EXTRAÇÃO LOCAL ===
+            echo -e "${YELLOW}[*] Baixando assets.zip do GitHub...${NC}"
             rm -rf "$TMP_DIR"
             mkdir -p "$TMP_DIR"
-            
             curl -sL "$REMOTE_ZIP" -o "${TMP_DIR}/assets.zip"
 
             if [ ! -s "${TMP_DIR}/assets.zip" ]; then
@@ -175,49 +173,47 @@ while true; do
                 continue
             fi
 
-            echo -e "${YELLOW}[*] Extraindo arquivos temporários...${NC}"
-            unzip -q -o "${TMP_DIR}/assets.zip" -d "${TMP_DIR}/extracted"
-            
-            # As vezes o zip extrai numa subpasta "assets/". Vamos procurar os html_proxyarb
-            SRC_DIR=$(find "${TMP_DIR}/extracted" -name "html_proxyarb1.html" -exec dirname {} \; | head -n 1)
+            echo -e "${YELLOW}[*] Extraindo assets para a pasta local...${NC}"
+            mkdir -p "$MOD_DIR"
+            unzip -q -o "${TMP_DIR}/assets.zip" -d "$MOD_DIR"
 
+            # Se o zip extraiu numa subpasta "assets/", os arquivos foram pra MOD_DIR/assets/
+            # Vamos garantir que o script ache os arquivos no lugar certo
+            SRC_DIR=$(find "$MOD_DIR" -name "html_proxyarb1.html" -exec dirname {} \; | head -n 1)
             if [ -z "$SRC_DIR" ]; then
                 echo -e "${RED}[!] Arquivos html_proxyarb não encontrados no zip.${NC}"
                 sleep 3
                 continue
             fi
+            # Ajusta o MOD_DIR pra apontar pra subpasta, se houver
+            MOD_DIR="$SRC_DIR"
 
-            echo -e "${YELLOW}[*] Injetando mods via ADB Push...${NC}"
+            echo -e "${YELLOW}[*] Injetando mods via ADB...${NC}"
             
-            adb shell "mkdir -p ${FF_DIR}/gameassetbundles"
-            adb shell "mkdir -p ${FF_DIR}/optionalavatarres/gameassetbundles"
+            # Cria a pasta caso ela não exista
+            adb shell "mkdir -p ${FF_ASSETS_DIR}/gameassetbundles"
+            adb shell "mkdir -p ${FF_ASSETS_DIR}/optionalavatarres/gameassetbundles"
             
             # Injeção (Opção 1 ou 3)
             if [ "$FUNC_OPT" == "1" ] || [ "$FUNC_OPT" == "3" ]; then
                 echo -e "${CYAN}  [+] Injetando Shaders Principais...${NC}"
-                adb push "${SRC_DIR}/html_proxyarb1.html" "${FF_DIR}/gameassetbundles/shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D" >/dev/null
-                adb push "${SRC_DIR}/html_proxyarb2.html" "${FF_DIR}/gameassetbundles/shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D" >/dev/null
+                adb shell "cp ${MOD_DIR}/html_proxyarb1.html ${FF_ASSETS_DIR}/gameassetbundles/shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D"
+                adb shell "cp ${MOD_DIR}/html_proxyarb2.html ${FF_ASSETS_DIR}/gameassetbundles/shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D"
                 
                 echo -e "${CYAN}  [+] Injetando Shaders de Avatar...${NC}"
-                adb push "${SRC_DIR}/html_proxyarb3.html" "${FF_DIR}/optionalavatarres/gameassetbundles/optionalavatarres_commonab_shader.YXsllDlwiET7~2Flua2jgC6ucxzic~3D" >/dev/null
-                adb push "${SRC_DIR}/html_proxyarb4.html" "${FF_DIR}/optionalavatarres/gameassetbundles/optionalavatarres_commonab_shader.YXsllDlwiET7~2Flua2jgC6ucxzic~3D" >/dev/null
+                adb shell "cp ${MOD_DIR}/html_proxyarb3.html ${FF_ASSETS_DIR}/optionalavatarres/gameassetbundles/optionalavatarres_commonab_shader.YXsllDlwiET7~2Flua2jgC6ucxzic~3D"
+                adb shell "cp ${MOD_DIR}/html_proxyarb4.html ${FF_ASSETS_DIR}/optionalavatarres/gameassetbundles/optionalavatarres_commonab_shader.YXsllDlwiET7~2Flua2jgC6ucxzic~3D"
             fi
 
             # Injeção (Opção 2 ou 3)
             if [ "$FUNC_OPT" == "2" ] || [ "$FUNC_OPT" == "3" ]; then
                 echo -e "${CYAN}  [+] Injetando Fileinfos (Aimbot)...${NC}"
-                adb push "${SRC_DIR}/html_proxyarb3.html" "${FF_DIR}/fileinfo" >/dev/null
-                adb push "${SRC_DIR}/html_proxyarb4.html" "${FF_DIR}/optionalavatarres/fileinfo" >/dev/null
+                adb shell "cp ${MOD_DIR}/html_proxyarb3.html ${FF_ASSETS_DIR}/fileinfo"
+                adb shell "cp ${MOD_DIR}/html_proxyarb4.html ${FF_ASSETS_DIR}/optionalavatarres/fileinfo"
             fi
 
-            echo -e "${YELLOW}[*] Aplicando trava de leitura (Bypass de escrita)...${NC}"
-            adb shell "chattr +i ${FF_DIR}/gameassetbundles/* 2>/dev/null || chmod 444 ${FF_DIR}/gameassetbundles/*"
-            adb shell "chattr +i ${FF_DIR}/optionalavatarres/gameassetbundles/* 2>/dev/null || chmod 444 ${FF_DIR}/optionalavatarres/gameassetbundles/*"
-            adb shell "chmod 444 ${FF_DIR}/fileinfo 2>/dev/null"
-            adb shell "chmod 444 ${FF_DIR}/optionalavatarres/fileinfo 2>/dev/null"
-
             ESTADO[$FUNC_OPT]=1
-            echo -e "\n${GREEN}[+] Módulo Injetado e Travado! Abra o Free Fire.${NC}"
+            echo -e "\n${GREEN}[+] Módulo Injetado! Abra o Free Fire.${NC}"
             
             # Limpa os temporários
             rm -rf "$TMP_DIR"
