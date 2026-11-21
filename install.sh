@@ -6,16 +6,16 @@ YELLOW='\033[1;33m'; PURPLE='\033[0;35m'; WHITE='\033[1;37m'; NC='\033[0m'
 # --- CONFIGURAÇÕES ---
 FIREBASE_URL="https://external-serv-default-rtdb.firebaseio.com"
 FF_PACKAGE="com.dts.freefireth"
-FF_ASSETS_DIR="/storage/emulated/0/Android/data/${FF_PACKAGE}/files/contentcache/Optional/android"
-MOD_DIR="/sdcard/Download/assets"
-BACKUP_DIR="/sdcard/Download/ff_original_backup"
-TMP_DIR="/data/data/com.termux/files/usr/tmp/ghost"
+FF_DATA_ROOT="/storage/emulated/0/Android/data/${FF_PACKAGE}"
+FF_ASSETS_DIR="${FF_DATA_ROOT}/files/contentcache/Optional/android"
 
-# LINK DO ZIP NO GITHUB
-REMOTE_ZIP="https://raw.githubusercontent.com/Pkdev730/Holograma/main/assets.zip"
+# --- LINK DO ZIP NO GITHUB ---
+# Substitua pelo link Raw exato do arquivo HOLOGRAMA VIP.zip no seu repo
+REMOTE_ZIP="https://raw.githubusercontent.com/Pkdev730/Holograma/main/HOLOGRAMA%20VIP.zip"
+TMP_DIR="/data/data/com.termux/files/usr/tmp/ghost_cloud"
 
 # --- CHECA DEPENDÊNCIAS ---
-for cmd in adb curl unzip; do
+for cmd in adb curl unzip find; do
     if ! command -v $cmd &> /dev/null; then
         printf "\033c"
         echo -e "${RED}[!] Falta o pacote: $cmd. Rode: pkg install android-tools curl unzip${NC}"
@@ -30,32 +30,22 @@ echo -e "${PURPLE}==========================================${NC}\n"
 
 # --- CONEXÃO ADB ---
 ADB_STATE=$(adb get-state 2>/dev/null | tr -d '\r\n')
-
 if [ "$ADB_STATE" == "device" ]; then
     echo -e "${GREEN}[+] Sistema ADB já conectado.${NC}"
     sleep 1
 else
     echo -e "${WHITE}Etapa 1: Conexão com o Dispositivo${NC}"
     echo -e "${YELLOW}O ADB não está conectado. Vamos configurar agora.${NC}\n"
-
-    echo -n "IP:PORTA de PAREAMENTO: "
-    read -r PAIR_ADDR < /dev/tty
-    echo -n "Código de 6 dígitos: "
-    read -r PAIR_CODE < /dev/tty
-
+    echo -n "IP:PORTA de PAREAMENTO: "; read -r PAIR_ADDR < /dev/tty
+    echo -n "Código de 6 dígitos: "; read -r PAIR_CODE < /dev/tty
     echo -e "\n${YELLOW}[*] Pareando dispositivos...${NC}"
     adb pair $PAIR_ADDR $PAIR_CODE
-
-    echo -n "IP:PORTA de CONEXÃO: "
-    read -r CONN_ADDR < /dev/tty
-
+    echo -n "IP:PORTA de CONEXÃO: "; read -r CONN_ADDR < /dev/tty
     echo -e "${YELLOW}[*] Estabelecendo conexão segura...${NC}"
     adb connect $CONN_ADDR
     sleep 1
-
     if [ "$(adb get-state 2>/dev/null | tr -d '\r\n')" != "device" ]; then
-        echo -e "${RED}[!] Falha na conexão. Verifique os dados e tente novamente.${NC}"
-        exit 1
+        echo -e "${RED}[!] Falha na conexão. Verifique os dados e tente novamente.${NC}"; exit 1
     fi
 fi
 
@@ -64,35 +54,23 @@ echo -e "${PURPLE}==========================================${NC}"
 echo -e "${WHITE}             VALIDAÇÃO DE LICENÇA         ${NC}"
 echo -e "${PURPLE}==========================================${NC}\n"
 
-echo -n "Digite a sua Key (ex: External-teste1): "
-read -r USER_KEY < /dev/tty
-
-if [ -z "$USER_KEY" ]; then
-    echo -e "${RED}[!] Key vazia. Abortando.${NC}"
-    exit 1
-fi
+echo -n "Digite a sua Key (ex: External-teste1): "; read -r USER_KEY < /dev/tty
+if [ -z "$USER_KEY" ]; then echo -e "${RED}[!] Key vazia. Abortando.${NC}"; exit 1; fi
 
 echo -e "${YELLOW}[*] Verificando Key no servidor...${NC}"
 FIREBASE_RESPONSE=$(curl -s --max-time 5 "${FIREBASE_URL}/.json")
-
 if [ -z "$FIREBASE_RESPONSE" ] || [ "$FIREBASE_RESPONSE" == "null" ]; then
-    echo -e "${RED}[!] Falha ao conectar ou banco vazio.${NC}"
-    exit 1
+    echo -e "${RED}[!] Falha ao conectar ou banco vazio.${NC}"; exit 1
 fi
-
 STATUS=$(echo "$FIREBASE_RESPONSE" | grep -o "\"$USER_KEY\".*\"status\":\"ativada\"" | head -n 1)
-
-if [ -z "$STATUS" ]; then
-    echo -e "${RED}[!] Key não encontrada, inativa ou expirada.${NC}"
-    exit 1
-fi
+if [ -z "$STATUS" ]; then echo -e "${RED}[!] Key não encontrada, inativa ou expirada.${NC}"; exit 1; fi
 
 echo -e "${GREEN}[+] Acesso Autorizado! Licença Válida.${NC}"
 sleep 2
 
 # --- MENU PRINCIPAL ---
 declare -A ESTADO
-for i in 1 2 3; do ESTADO[$i]=0; done
+ESTADO[1]=0
 
 while true; do
     printf "\033c"
@@ -104,14 +82,12 @@ while true; do
         if [ "${ESTADO[$1]}" -eq 1 ]; then echo -e "${GREEN}[ON]${NC}"; else echo -e "${RED}[OFF]${NC}"; fi
     }
 
-    echo -e "${CYAN}┌── MODS FREE FIRE ──────────────────────┐${NC}"
+    echo -e "${CYAN}┌── MODS FREE FIRE (ZIP CLOUD) ──────────┐${NC}"
     echo -e "  [1] Injetar ESP/Chams (Shaders) $(status 1)"
-    echo -e "  [2] Injetar Aimbot (Hook/Assets) $(status 2)"
-    echo -e "  [3] Injetar Todos os Mods        $(status 3)"
     echo -e "${CYAN}└────────────────────────────────────────┘${NC}"
 
     echo -e "\n${RED}┌── DESCONECTAR / LIMPAR (BYPASS) ───────┐${NC}"
-    echo -e "  [99] Restaurar Originais e Limpar Cache"
+    echo -e "  [99] Restaurar Originais via ZIP"
     echo -e "${RED}└────────────────────────────────────────┘${NC}"
 
     echo -e "\n  [0] Encerrar Sessão"
@@ -128,94 +104,90 @@ while true; do
             adb shell am force-stop $FF_PACKAGE
             sleep 1
 
-            echo -e "${YELLOW}[*] Restaurando arquivos originais do backup...${NC}"
-            if [ -d "${BACKUP_DIR}" ]; then
-                adb shell "rm -rf ${FF_ASSETS_DIR}/gameassetbundles"
-                adb shell "rm -rf ${FF_ASSETS_DIR}/optionalavatarres"
-                adb shell "cp -r ${BACKUP_DIR}/* ${FF_ASSETS_DIR}/"
-                echo -e "${GREEN}[+] Bypass concluído! Originais restaurados.${NC}"
-            else
-                echo -e "${RED}[!] Backup não encontrado. Limpando cache pra o jogo baixar originais...${NC}"
-                adb shell "rm -rf ${FF_ASSETS_DIR}/gameassetbundles"
-                adb shell "rm -rf ${FF_ASSETS_DIR}/optionalavatarres"
-            fi
+            echo -e "${YELLOW}[*] Baixando o pacote principal...${NC}"
+            rm -rf "$TMP_DIR"
+            mkdir -p "$TMP_DIR/download"
             
-            for i in 1 2 3; do ESTADO[$i]=0; done
+            curl -sL "$REMOTE_ZIP" -o "${TMP_DIR}/master.zip"
+
+            if [ ! -s "${TMP_DIR}/master.zip" ]; then
+                echo -e "${RED}[!] Falha ao baixar o ZIP do GitHub. Verifique o link.${NC}"
+                sleep 3
+                continue
+            fi
+
+            echo -e "${YELLOW}[*] Extraindo arquivos...${NC}"
+            unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
+
+            # Procura a pasta com.dts.freefireth dentro do que foi extraído
+            SRC_RESTORE=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" | head -n 1)
+
+            if [ -z "$SRC_RESTORE" ]; then
+                echo -e "${RED}[!] Pasta com.dts.freefireth não encontrada no ZIP.${NC}"
+                sleep 3
+                continue
+            fi
+
+            echo -e "${CYAN}  [+] Limpando modificações antigas...${NC}"
+            adb shell "rm -rf ${FF_ASSETS_DIR}/gameassetbundles"
+            adb shell "rm -rf ${FF_ASSETS_DIR}/optionalavatarres"
+            
+            echo -e "${CYAN}  [+] Restaurando originais via ADB...${NC}"
+            # Empurra o conteúdo da pasta com.dts.freefireth pra raiz do jogo
+            adb push "${SRC_RESTORE}/." "${FF_DATA_ROOT}/" > /dev/null
+            
+            echo -e "${GREEN}[+] Bypass concluído! Originais restaurados.${NC}"
+            
+            ESTADO[1]=0
+            rm -rf "$TMP_DIR"
             sleep 3
             continue
         fi
     fi
 
     case $FUNC_OPT in
-        1|2|3)
+        1)
             echo -e "\n${YELLOW}[*] Fechando o Free Fire...${NC}"
             adb shell am force-stop $FF_PACKAGE
             sleep 1
 
-            if [ ! -d "${BACKUP_DIR}" ]; then
-                echo -e "${YELLOW}[*] Criando backup de segurança do jogo original...${NC}"
-                adb shell "mkdir -p ${BACKUP_DIR}"
-                adb shell "cp -r ${FF_ASSETS_DIR}/gameassetbundles ${BACKUP_DIR}/"
-                adb shell "cp -r ${FF_ASSETS_DIR}/optionalavatarres ${BACKUP_DIR}/"
-                adb shell "cp ${FF_ASSETS_DIR}/fileinfo ${BACKUP_DIR}/"
-                adb shell "cp ${FF_ASSETS_DIR}/optionalavatarres/fileinfo ${BACKUP_DIR}/"
-            fi
-
-            # === DOWNLOAD DO ZIP VIA GITHUB E EXTRAÇÃO LOCAL ===
-            echo -e "${YELLOW}[*] Baixando assets.zip do GitHub...${NC}"
+            echo -e "${YELLOW}[*] Baixando o pacote principal...${NC}"
             rm -rf "$TMP_DIR"
-            mkdir -p "$TMP_DIR"
-            curl -sL "$REMOTE_ZIP" -o "${TMP_DIR}/assets.zip"
+            mkdir -p "$TMP_DIR/download"
+            
+            curl -sL "$REMOTE_ZIP" -o "${TMP_DIR}/master.zip"
 
-            if [ ! -s "${TMP_DIR}/assets.zip" ]; then
-                echo -e "${RED}[!] Falha no download do ZIP. Verifica o link.${NC}"
+            if [ ! -s "${TMP_DIR}/master.zip" ]; then
+                echo -e "${RED}[!] Falha ao baixar o ZIP do GitHub.${NC}"
                 sleep 3
                 continue
             fi
 
-            echo -e "${YELLOW}[*] Extraindo assets para a pasta local...${NC}"
-            mkdir -p "$MOD_DIR"
-            unzip -q -o "${TMP_DIR}/assets.zip" -d "$MOD_DIR"
+            echo -e "${YELLOW}[*] Extraindo mod...${NC}"
+            unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
 
-            # Se o zip extraiu numa subpasta "assets/", os arquivos foram pra MOD_DIR/assets/
-            # Vamos garantir que o script ache os arquivos no lugar certo
-            SRC_DIR=$(find "$MOD_DIR" -name "html_proxyarb1.html" -exec dirname {} \; | head -n 1)
-            if [ -z "$SRC_DIR" ]; then
-                echo -e "${RED}[!] Arquivos html_proxyarb não encontrados no zip.${NC}"
+            # Procura o primeiro arquivo válido dentro da pasta HOLOGRAMA FREE FIRE NORMAL
+            SRC_FILE=$(find "${TMP_DIR}/content" -type f -path "*HOLOGRAMA FREE FIRE NORMAL*" | head -n 1)
+
+            if [ -z "$SRC_FILE" ]; then
+                echo -e "${RED}[!] Nenhum arquivo encontrado na pasta do mod.${NC}"
                 sleep 3
                 continue
             fi
-            # Ajusta o MOD_DIR pra apontar pra subpasta, se houver
-            MOD_DIR="$SRC_DIR"
 
             echo -e "${YELLOW}[*] Injetando mods via ADB...${NC}"
-            
-            # Cria a pasta caso ela não exista
             adb shell "mkdir -p ${FF_ASSETS_DIR}/gameassetbundles"
             adb shell "mkdir -p ${FF_ASSETS_DIR}/optionalavatarres/gameassetbundles"
-            
-            # Injeção (Opção 1 ou 3)
-            if [ "$FUNC_OPT" == "1" ] || [ "$FUNC_OPT" == "3" ]; then
-                echo -e "${CYAN}  [+] Injetando Shaders Principais...${NC}"
-                adb shell "cp ${MOD_DIR}/html_proxyarb1.html ${FF_ASSETS_DIR}/gameassetbundles/shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D"
-                adb shell "cp ${MOD_DIR}/html_proxyarb2.html ${FF_ASSETS_DIR}/gameassetbundles/shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D"
-                
-                echo -e "${CYAN}  [+] Injetando Shaders de Avatar...${NC}"
-                adb shell "cp ${MOD_DIR}/html_proxyarb3.html ${FF_ASSETS_DIR}/optionalavatarres/gameassetbundles/optionalavatarres_commonab_shader.YXsllDlwiET7~2Flua2jgC6ucxzic~3D"
-                adb shell "cp ${MOD_DIR}/html_proxyarb4.html ${FF_ASSETS_DIR}/optionalavatarres/gameassetbundles/optionalavatarres_commonab_shader.YXsllDlwiET7~2Flua2jgC6ucxzic~3D"
-            fi
 
-            # Injeção (Opção 2 ou 3)
-            if [ "$FUNC_OPT" == "2" ] || [ "$FUNC_OPT" == "3" ]; then
-                echo -e "${CYAN}  [+] Injetando Fileinfos (Aimbot)...${NC}"
-                adb shell "cp ${MOD_DIR}/html_proxyarb3.html ${FF_ASSETS_DIR}/fileinfo"
-                adb shell "cp ${MOD_DIR}/html_proxyarb4.html ${FF_ASSETS_DIR}/optionalavatarres/fileinfo"
-            fi
-
-            ESTADO[$FUNC_OPT]=1
-            echo -e "\n${GREEN}[+] Módulo Injetado! Abra o Free Fire.${NC}"
+            echo -e "${CYAN}  [+] Injetando Shaders Principais...${NC}"
+            adb push "$SRC_FILE" "${FF_ASSETS_DIR}/gameassetbundles/shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D" > /dev/null
             
-            # Limpa os temporários
+            echo -e "${CYAN}  [+] Injetando Shaders de Avatar...${NC}"
+            adb push "$SRC_FILE" "${FF_ASSETS_DIR}/optionalavatarres/gameassetbundles/optionalavatarres_commonab_shader.YXsllDlwiET7~2Flua2jgC6ucxzic~3D" > /dev/null
+
+            ESTADO[1]=1
+            echo -e "\n${GREEN}[+] Holograma Injetado! Abra o Free Fire.${NC}"
+            
             rm -rf "$TMP_DIR"
             ;;
         0)
