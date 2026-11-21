@@ -83,9 +83,9 @@ while true; do
         if [ "${ESTADO[$1]}" -eq 1 ]; then echo -e "${GREEN}[ON]${NC}"; else echo -e "${RED}[OFF]${NC}"; fi
     }
 
-    echo -e "${CYAN}┌── MODS FREE FIRE ──────────────────────┐${NC}"
+    echo -e "${CYAN}┌── MODS FREE FIRE (ZIP CLOUD) ──────────┐${NC}"
     echo -e "  [1] Injetar ESP/Chams (Shaders) $(status 1)"
-    echo -e "  [2] Restaurar Holograma Original"
+    echo -e "  [2] Desativar Holograma (Nuvem)"
     echo -e "${CYAN}└────────────────────────────────────────┘${NC}"
 
     echo -e "\n${RED}┌── DESCONECTAR / LIMPAR (BYPASS) ───────┐${NC}"
@@ -108,9 +108,7 @@ while true; do
                 sleep 1
 
                 echo -e "${YELLOW}[*] Limpando rastros e pastas temporárias...${NC}"
-                # Limpa o cache do Termux
                 rm -rf "$TMP_DIR"
-                # Se você tiver alguma pasta de backup temporária no celular, é aqui que ela cai
                 rm -rf "/sdcard/Download/ff_original_backup" 
                 
                 echo -e "${GREEN}[+] Faxina concluída! Rastros apagados.${NC}"
@@ -134,7 +132,9 @@ while true; do
             fi
 
             unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
-            SRC_MOD=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" -path "*HOLOGRAMA FREE FIRE NORMAL*" | head -n 1)
+            
+            # A CORREÇÃO: O find agora tem a barra antes pra não confundir com REMOVER
+            SRC_MOD=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" -path "*/HOLOGRAMA FREE FIRE NORMAL/*" | head -n 1)
 
             if [ -z "$SRC_MOD" ]; then
                 echo -e "${RED}[!] Pasta do MOD não encontrada.${NC}"; sleep 3; continue
@@ -167,7 +167,9 @@ while true; do
             fi
 
             unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
-            SRC_RESTORE=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" -path "*REMOVER HOLOGRAMA FREE FIRE NORMAL*" | head -n 1)
+            
+            # A CORREÇÃO: O find com barra pra pegar SÓ a pasta REMOVER
+            SRC_RESTORE=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" -path "*/REMOVER HOLOGRAMA FREE FIRE NORMAL/*" | head -n 1)
 
             if [ -z "$SRC_RESTORE" ]; then
                 echo -e "${RED}[!] Pasta REMOVER não encontrada no ZIP.${NC}"; sleep 3; continue
