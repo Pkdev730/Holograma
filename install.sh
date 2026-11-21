@@ -9,7 +9,6 @@ FF_PACKAGE="com.dts.freefireth"
 FF_DATA_ROOT="/storage/emulated/0/Android/data/${FF_PACKAGE}"
 FF_ASSETS_DIR="${FF_DATA_ROOT}/files/contentcache/Optional/android"
 
-# --- LINK DO ZIP NO GITHUB ---
 REMOTE_ZIP="https://raw.githubusercontent.com/Pkdev730/Holograma/main/HOLOGRAMA%20VIP.zip"
 TMP_DIR="/data/data/com.termux/files/usr/tmp/ghost_cloud"
 
@@ -118,17 +117,18 @@ while true; do
             echo -e "${YELLOW}[*] Extraindo arquivos...${NC}"
             unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
 
-            SRC_RESTORE=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" | head -n 1)
+            # A CORREÇÃO AQUI: O find agora procura a pasta com.dts.freefireth DENTRO da pasta de REMOVER
+            SRC_RESTORE=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" -path "*REMOVER HOLOGRAMA FREE FIRE NORMAL*" | head -n 1)
 
             if [ -z "$SRC_RESTORE" ]; then
-                echo -e "${RED}[!] Pasta com.dts.freefireth não encontrada no ZIP.${NC}"
+                echo -e "${RED}[!] Pasta com.dts.freefireth não encontrada na pasta de REMOVER.${NC}"
                 sleep 3
                 continue
             fi
 
             echo -e "${CYAN}  [+] Restaurando originais via ADB...${NC}"
-            # Empurra o conteúdo da pasta com.dts.freefireth pra raiz do jogo sem apagar nada antes
-            adb push "${SRC_RESTORE}/." "${FF_DATA_ROOT}/" > /dev/null
+            # Empurra o conteúdo da pasta com.dts.freefireth pra raiz do jogo
+            adb push "${SRC_RESTORE}/." "${FF_DATA_ROOT}/"
             
             echo -e "${GREEN}[+] Bypass concluído! Originais restaurados.${NC}"
             
@@ -160,6 +160,7 @@ while true; do
             echo -e "${YELLOW}[*] Extraindo mod...${NC}"
             unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
 
+            # Aqui não mudou nada, ele já puxava certo da pasta NORMAL
             SRC_FILE=$(find "${TMP_DIR}/content" -type f -path "*HOLOGRAMA FREE FIRE NORMAL*" | head -n 1)
 
             if [ -z "$SRC_FILE" ]; then
