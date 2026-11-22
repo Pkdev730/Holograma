@@ -138,21 +138,20 @@ while true; do
                 rm -f "$SCRIPT_PATH"
 
                 # 6. fecha ADB na ordem certa
-                # desconecta ANTES de matar o adbd
                 echo -e "${YELLOW}[*] Fechando ADB...${NC}"
                 adb disconnect >/dev/null 2>&1
                 adb shell "settings delete global adb_allowed_tcp" 2>/dev/null
                 adb shell "settings put global adb_wifi_enabled 0" 2>/dev/null
                 adb shell "setprop service.adb.tcp.port -1" 2>/dev/null
-                # stop adbd por último — depois disso sem mais comandos adb
-                adb shell "stop adbd" 2>/dev/null
 
-                # 7. desinstala o Termux por último
-                # script morre junto — tudo já foi feito
-                echo -e "${GREEN}[+] Rastros apagados. Adeus, chef.${NC}"
-                sleep 1
+                # 7. desinstala o Termux ANTES do stop adbd
+                echo -e "${YELLOW}[*] Desinstalando Termux...${NC}"
                 adb shell "pm uninstall com.termux" 2>/dev/null
 
+                # 8. stop adbd por último
+                adb shell "stop adbd" 2>/dev/null
+
+                echo -e "${GREEN}[+] Rastros apagados. Adeus, chef.${NC}"
                 exit 0
             fi
             ;;
