@@ -2,7 +2,7 @@
 
 GREEN='\033[0;32m'; RED='\033[0;31m'; CYAN='\033[0;36m'
 YELLOW='\033[1;33m'; PURPLE='\033[0;35m'; WHITE='\033[1;37m'; NC='\033[0m'
-BLACK='\033[1;30m' # Cinza escuro/Preto pro terminal
+BLACK='\033[1;30m'
 
 # --- CONFIGURAÇÕES ---
 FIREBASE_URL="https://external-serv-default-rtdb.firebaseio.com"
@@ -101,53 +101,77 @@ while true; do
     case $FUNC_OPT in
 
         99)
-            echo -e "\n${RED}[!] Vai fechar o jogo, apagar rastros e destruir o Termux.${NC}"
+            echo -e "\n${RED}[!] Vai fechar o jogo, apagar rastros e fechar sessão.${NC}"
             echo -n "Tem certeza? (s/n): "
             read -r CONFIRMA < /dev/tty
 
             if [ "$CONFIRMA" == "s" ]; then
-                echo -e "${YELLOW}[*] Executando bypass e fechando sessão...${NC}"
-                adb shell "pid=\$(pidof $FF_PACKAGE 2>/dev/null); [ -n \"\$pid\" ] && kill -9 \$pid 2>/dev/null; true"
-                adb shell "pid=\$(pidof $LOGCAT_PKG 2>/dev/null); [ -n \"\$pid\" ] && kill -9 \$pid 2>/dev/null; true"
-                adb shell "pm clear $LOGCAT_PKG" 2>/dev/null
-                adb shell "dumpsys batterystats --reset" 2>/dev/null
-                adb shell "logcat -c" 2>/dev/null
-                
-                rm -rf "$TMP_DIR" "/sdcard/Download/ff_original_backup" "/sdcard/Download/*.zip" "/sdcard/Download/*.sh"
-                history -c && rm -f ~/.bash_history /data/data/com.termux/files/home/.bash_history
-                SCRIPT_PATH="$(realpath $0)"
-                rm -f "$SCRIPT_PATH"
+                echo -e "${YELLOW}[*] Executando bypass...${NC}"
 
-                adb disconnect >/dev/null 2>&1
+                adb shell "pid=\$(pidof $FF_PACKAGE 2>/dev/null); \
+                [ -n \"\$pid\" ] && kill -9 \$pid 2>/dev/null; true"
+                sleep 1
+
+                adb shell "pid=\$(pidof $LOGCAT_PKG 2>/dev/null); \
+                [ -n \"\$pid\" ] && kill -9 \$pid 2>/dev/null; true"
+                adb shell "pm clear $LOGCAT_PKG" 2>/dev/null
+
+                adb shell "rm -f /data/data/com.termux/files/home/.bash_history" 2>/dev/null
+                adb shell "rm -rf /data/data/com.termux/files/usr/tmp/" 2>/dev/null
+
                 adb shell "settings delete global adb_allowed_tcp" 2>/dev/null
                 adb shell "settings put global adb_wifi_enabled 0" 2>/dev/null
                 adb shell "setprop service.adb.tcp.port -1" 2>/dev/null
-                adb shell "pm uninstall com.termux" 2>/dev/null
                 adb shell "stop adbd" 2>/dev/null
 
-                echo -e "${GREEN}[+] Rastros apagados. Adeus, chef.${NC}"
+                rm -rf "$TMP_DIR"
+                rm -rf "/sdcard/Download/ff_original_backup"
+                rm -rf "/sdcard/Download/*.zip"
+                rm -rf "/sdcard/Download/*.sh"
+                history -c
+                rm -f ~/.bash_history
+                rm -f /data/data/com.termux/files/home/.bash_history
+                SCRIPT_PATH="$(realpath $0)"
+                rm -f "$SCRIPT_PATH"
+
+                echo -e "${GREEN}[+] Rastros apagados. Sessão encerrada.${NC}"
+                sleep 1
                 exit 0
             fi
             ;;
 
         1)
             echo -e "\n${CYAN}[*] Injetando bypass...${NC}"
-            
-            adb shell "pid=\$(pidof $FF_PACKAGE 2>/dev/null); [ -n \"\$pid\" ] && kill -9 \$pid 2>/dev/null; true"
+
+            adb shell "pid=\$(pidof $FF_PACKAGE 2>/dev/null); \
+            [ -n \"\$pid\" ] && kill -9 \$pid 2>/dev/null; true"
+            sleep 1
+
             rm -rf "$TMP_DIR" && mkdir -p "$TMP_DIR/download"
             curl -sL "$REMOTE_ZIP" -o "${TMP_DIR}/master.zip"
+
+            if [ ! -s "${TMP_DIR}/master.zip" ]; then
+                echo -e "${RED}[!] Falha ao baixar.${NC}"
+                rm -rf "$TMP_DIR"; sleep 3; continue
+            fi
+
             unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
 
-            SRC_MOD=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" -path "*/HOLOGRAMA FREE FIRE NORMAL/*" | head -n 1)
-            
+            SRC_MOD=$(find "${TMP_DIR}/content" -type d \
+                -name "com.dts.freefireth" \
+                -path "*/HOLOGRAMA FREE FIRE NORMAL/*" | head -n 1)
+
             if [ -n "$SRC_MOD" ]; then
                 adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ORIGINAL}'"
                 adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}'"
                 adb push "$SRC_MOD/." "${FF_DATA_ROOT}/" > /dev/null
-                adb shell "find '${FF_ASSETS_DIR}/gameassetbundles' -exec touch -t ${DATA_FALSA} {} \; 2>/dev/null"
-                adb shell "touch -t ${DATA_FALSA} '${FF_ASSETS_DIR}/fileinfo' 2>/dev/null"
+                adb shell "find '${FF_ASSETS_DIR}/gameassetbundles' \
+                    -exec touch -t ${DATA_FALSA} {} \; 2>/dev/null"
+                adb shell "touch -t ${DATA_FALSA} \
+                    '${FF_ASSETS_DIR}/fileinfo' 2>/dev/null"
                 ESTADO[1]=1
-                echo -e "${GREEN}[+] Bypass ativado! Abra o Free Fire.${NC}"
+                echo -e "${GREEN}[+] Bypass ativado!${NC}"
+                echo -e "${YELLOW}[!] Feche o jogo completamente e abra novamente.${NC}"
             else
                 echo -e "${RED}[!] Falha no bypass.${NC}"
             fi
@@ -155,25 +179,39 @@ while true; do
             ;;
 
         2)
-            echo -e "\n${CYAN}[*] Injetando bypass (Original)...${NC}"
-            
-            adb shell "pid=\$(pidof $FF_PACKAGE 2>/dev/null); [ -n \"\$pid\" ] && kill -9 \$pid 2>/dev/null; true"
+            echo -e "\n${CYAN}[*] Removendo bypass...${NC}"
+
+            adb shell "pid=\$(pidof $FF_PACKAGE 2>/dev/null); \
+            [ -n \"\$pid\" ] && kill -9 \$pid 2>/dev/null; true"
+            sleep 1
+
             rm -rf "$TMP_DIR" && mkdir -p "$TMP_DIR/download"
             curl -sL "$REMOTE_ZIP" -o "${TMP_DIR}/master.zip"
+
+            if [ ! -s "${TMP_DIR}/master.zip" ]; then
+                echo -e "${RED}[!] Falha ao baixar.${NC}"
+                rm -rf "$TMP_DIR"; sleep 3; continue
+            fi
+
             unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
 
-            SRC_RESTORE=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" -path "*/REMOVER HOLOGRAMA FREE FIRE NORMAL/*" | head -n 1)
+            SRC_RESTORE=$(find "${TMP_DIR}/content" -type d \
+                -name "com.dts.freefireth" \
+                -path "*/REMOVER HOLOGRAMA FREE FIRE NORMAL/*" | head -n 1)
 
             if [ -n "$SRC_RESTORE" ]; then
                 adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ORIGINAL}'"
                 adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}'"
                 adb push "$SRC_RESTORE/." "${FF_DATA_ROOT}/" > /dev/null
-                adb shell "find '${FF_ASSETS_DIR}/gameassetbundles' -exec touch -t ${DATA_FALSA} {} \; 2>/dev/null"
-                adb shell "touch -t ${DATA_FALSA} '${FF_ASSETS_DIR}/fileinfo' 2>/dev/null"
+                adb shell "find '${FF_ASSETS_DIR}/gameassetbundles' \
+                    -exec touch -t ${DATA_FALSA} {} \; 2>/dev/null"
+                adb shell "touch -t ${DATA_FALSA} \
+                    '${FF_ASSETS_DIR}/fileinfo' 2>/dev/null"
                 ESTADO[1]=0
-                echo -e "${GREEN}[+] Bypass de remoção ativado!${NC}"
+                echo -e "${GREEN}[+] Bypass removido!${NC}"
+                echo -e "${YELLOW}[!] Feche o jogo completamente e abra novamente.${NC}"
             else
-                echo -e "${RED}[!] Falha no bypass.${NC}"
+                echo -e "${RED}[!] Falha na remoção.${NC}"
             fi
             rm -rf "$TMP_DIR"
             ;;
