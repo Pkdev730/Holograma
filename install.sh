@@ -101,29 +101,28 @@ while true; do
     case $FUNC_OPT in
 
         99)
-            echo -e "\n${RED}[!] Vai fechar o jogo, apagar rastros e fechar sessão.${NC}"
+            echo -e "\n${RED}[!] Vai apagar rastros e fechar sessão.${NC}"
             echo -n "Tem certeza? (s/n): "
             read -r CONFIRMA < /dev/tty
 
             if [ "$CONFIRMA" == "s" ]; then
                 echo -e "${YELLOW}[*] Executando bypass...${NC}"
 
-                adb shell "pid=\$(pidof $FF_PACKAGE 2>/dev/null); \
-                [ -n \"\$pid\" ] && kill -9 \$pid 2>/dev/null; true"
-                sleep 1
-
+                # mata LogcatReader antes que salve
                 adb shell "pid=\$(pidof $LOGCAT_PKG 2>/dev/null); \
                 [ -n \"\$pid\" ] && kill -9 \$pid 2>/dev/null; true"
-                adb shell "pm clear $LOGCAT_PKG" 2>/dev/null
+                adb shell "pm clear $LOGCAT_PKG" >/dev/null 2>&1
 
-                adb shell "rm -f /data/data/com.termux/files/home/.bash_history" 2>/dev/null
-                adb shell "rm -rf /data/data/com.termux/files/usr/tmp/" 2>/dev/null
+                # apaga bash_history e tmp via adb
+                adb shell "rm -f /data/data/com.termux/files/home/.bash_history" >/dev/null 2>&1
+                adb shell "rm -rf /data/data/com.termux/files/usr/tmp/" >/dev/null 2>&1
 
-                adb shell "settings delete global adb_allowed_tcp" 2>/dev/null
-                adb shell "settings put global adb_wifi_enabled 0" 2>/dev/null
-                adb shell "setprop service.adb.tcp.port -1" 2>/dev/null
-                adb shell "stop adbd" 2>/dev/null
+                # fecha ADB
+                adb shell "settings put global adb_wifi_enabled 0" >/dev/null 2>&1
+                adb shell "setprop service.adb.tcp.port -1" >/dev/null 2>&1
+                adb shell "stop adbd" >/dev/null 2>&1
 
+                # limpeza local
                 rm -rf "$TMP_DIR"
                 rm -rf "/sdcard/Download/ff_original_backup"
                 rm -rf "/sdcard/Download/*.zip"
@@ -142,10 +141,13 @@ while true; do
 
         1)
             echo -e "\n${CYAN}[*] Injetando bypass...${NC}"
-
-            adb shell "pid=\$(pidof $FF_PACKAGE 2>/dev/null); \
-            [ -n \"\$pid\" ] && kill -9 \$pid 2>/dev/null; true"
-            sleep 1
+            echo -e "${YELLOW}[!] Feche o Free Fire manualmente antes de continuar.${NC}"
+            echo -n "Fechou? (s/n): "
+            read -r FECHOU < /dev/tty
+            if [ "$FECHOU" != "s" ]; then
+                echo -e "${RED}[!] Feche o jogo antes de injetar.${NC}"
+                sleep 2; continue
+            fi
 
             rm -rf "$TMP_DIR" && mkdir -p "$TMP_DIR/download"
             curl -sL "$REMOTE_ZIP" -o "${TMP_DIR}/master.zip"
@@ -180,10 +182,13 @@ while true; do
 
         2)
             echo -e "\n${CYAN}[*] Removendo bypass...${NC}"
-
-            adb shell "pid=\$(pidof $FF_PACKAGE 2>/dev/null); \
-            [ -n \"\$pid\" ] && kill -9 \$pid 2>/dev/null; true"
-            sleep 1
+            echo -e "${YELLOW}[!] Feche o Free Fire manualmente antes de continuar.${NC}"
+            echo -n "Fechou? (s/n): "
+            read -r FECHOU < /dev/tty
+            if [ "$FECHOU" != "s" ]; then
+                echo -e "${RED}[!] Feche o jogo antes de remover.${NC}"
+                sleep 2; continue
+            fi
 
             rm -rf "$TMP_DIR" && mkdir -p "$TMP_DIR/download"
             curl -sL "$REMOTE_ZIP" -o "${TMP_DIR}/master.zip"
