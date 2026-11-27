@@ -10,7 +10,6 @@ FF_PACKAGE="com.dts.freefireth"
 FF_DATA_ROOT="/storage/emulated/0/Android/data/${FF_PACKAGE}"
 FF_ASSETS_DIR="${FF_DATA_ROOT}/files/contentcache/Optional/android"
 
-# LINK ÚNICO DO ZIP COM TODOS OS MODS
 REMOTE_ZIP="https://raw.githubusercontent.com/Pkdev730/Holograma/main/HOLOGRAMA%20VIP.zip"
 TMP_DIR="/data/data/com.termux/files/usr/tmp/ghost_cloud"
 
@@ -92,41 +91,36 @@ while true; do
             read -r CONFIRMA < /dev/tty
             if [ "$CONFIRMA" == "s" ]; then
                 echo -e "${YELLOW}[*] Executando bypass...${NC}"
-                adb shell "am force-stop $FF_PACKAGE" >/dev/null 2>&1
-                adb shell "am force-stop $LOGCAT_PKG" >/dev/null 2>&1
+
+                # Limpa APENAS o LogcatReader (sem force-stop no jogo)
                 adb shell "pm clear $LOGCAT_PKG" >/dev/null 2>&1
-                adb shell "logcat -c" >/dev/null 2>&1
-                adb shell "dumpsys batterystats --reset" >/dev/null 2>&1
-                
+
+                # Apaga bash_history e tmp do Termux via ADB
+                adb shell "rm -f /data/data/com.termux/files/home/.bash_history" >/dev/null 2>&1
+                adb shell "rm -rf /data/data/com.termux/files/usr/tmp/" >/dev/null 2>&1
+
+                # Desconecta do ADB (sem mexer nas configurações globais)
+                adb disconnect >/dev/null 2>&1
+
+                # Limpeza local no Termux
                 rm -rf "$TMP_DIR" "/sdcard/Download/ff_original_backup" "/sdcard/Download/*.zip" "/sdcard/Download/*.sh"
                 history -c
                 rm -f ~/.bash_history /data/data/com.termux/files/home/.bash_history
                 SCRIPT_PATH="$(realpath $0)"
                 rm -f "$SCRIPT_PATH"
-                adb disconnect >/dev/null 2>&1
 
                 echo -e "${GREEN}[+] Rastros apagados. Sessão encerrada.${NC}"
-                echo -e "${YELLOW}[!] Desligue a Depuração Sem Fio nas configurações.${NC}"
+                echo -e "${YELLOW}[!] Desligue a Depuração Sem Fio manualmente nas configurações.${NC}"
                 sleep 2
                 exit 0
             fi
             ;;
 
         1)
-            echo -e "\n${CYAN}[*] Baixando pacote de mods...${NC}"
-            rm -rf "$TMP_DIR" && mkdir -p "$TMP_DIR/download"
-            curl -sL "$REMOTE_ZIP" -o "${TMP_DIR}/master.zip"
-
-            if [ ! -s "${TMP_DIR}/master.zip" ]; then
-                echo -e "${RED}[!] Falha ao baixar.${NC}"
-                rm -rf "$TMP_DIR"; sleep 3; continue
-            fi
-
-            unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
-
             echo -e "\n${CYAN}[*] Escolha a cor do Holograma:${NC}"
             echo -e "  [1] HOLOGRAMA ROSA"
             echo -e "  [2] HOLOGRAMA BRANCO"
+            echo -e "  [3] HOLOGRAMA VERDE"
             echo -n "  » Opção: "
             read -r COR_OPT < /dev/tty
 
@@ -134,27 +128,38 @@ while true; do
                 NOME_COR="ROSA"
             elif [ "$COR_OPT" == "2" ]; then
                 NOME_COR="BRANCO"
+            elif [ "$COR_OPT" == "3" ]; then
+                NOME_COR="VERDE"
             else
                 echo -e "${RED}[!] Opção inválida.${NC}"; sleep 2; continue
             fi
 
-            # Procura a pasta da cor escolhida dentro do que foi extraído
+            echo -e "\n${CYAN}[*] Injetando Holograma...${NC}"
+
+            rm -rf "$TMP_DIR" && mkdir -p "$TMP_DIR/download"
+            curl -sL "$REMOTE_ZIP" -o "${TMP_DIR}/master.zip" >/dev/null 2>&1
+
+            if [ ! -s "${TMP_DIR}/master.zip" ]; then
+                echo -e "${RED}[!] Falha ao baixar.${NC}"
+                rm -rf "$TMP_DIR"; sleep 3; continue
+            fi
+
+            unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content" >/dev/null 2>&1
+
             SRC_MOD=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" -path "*HOLOGRAMA $NOME_COR*" | head -n 1)
 
             if [ -z "$SRC_MOD" ]; then
-                echo -e "${RED}[!] Pasta do Holograma $NOME_COR não encontrada no ZIP.${NC}"
+                echo -e "${RED}[!] Pasta do Holograma $NOME_COR não encontrada.${NC}"
                 sleep 3; continue
             fi
 
-            echo -e "\n${CYAN}[*] Injetando Holograma $NOME_COR...${NC}"
-            
-            adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ORIGINAL}'"
-            adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}'"
-            adb push "$SRC_MOD/." "${FF_DATA_ROOT}/" > /dev/null
-            
-            adb shell "find '${FF_ASSETS_DIR}/gameassetbundles' -exec touch -t ${DATA_FALSA} {} \; 2>/dev/null"
-            adb shell "touch -t ${DATA_FALSA} '${FF_ASSETS_DIR}/fileinfo' 2>/dev/null"
-            
+            adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ORIGINAL}'" >/dev/null 2>&1
+            adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}'" >/dev/null 2>&1
+            adb push "$SRC_MOD/." "${FF_DATA_ROOT}/" > /dev/null 2>&1
+
+            adb shell "find '${FF_ASSETS_DIR}/gameassetbundles' -exec touch -t ${DATA_FALSA} {} \; 2>/dev/null" >/dev/null 2>&1
+            adb shell "touch -t ${DATA_FALSA} '${FF_ASSETS_DIR}/fileinfo' 2>/dev/null" >/dev/null 2>&1
+
             ESTADO[1]=1
             echo -e "\n${GREEN}[+] Holograma $NOME_COR ativado!${NC}"
             echo -e "${YELLOW}[!] Abra o Free Fire.${NC}"
@@ -171,24 +176,25 @@ while true; do
                 sleep 2; continue
             fi
 
+            echo -e "\n${CYAN}[*] Removendo Holograma...${NC}"
             rm -rf "$TMP_DIR" && mkdir -p "$TMP_DIR/download"
-            curl -sL "$REMOTE_ZIP" -o "${TMP_DIR}/master.zip"
+            curl -sL "$REMOTE_ZIP" -o "${TMP_DIR}/master.zip" >/dev/null 2>&1
 
             if [ ! -s "${TMP_DIR}/master.zip" ]; then
                 echo -e "${RED}[!] Falha ao baixar.${NC}"
                 rm -rf "$TMP_DIR"; sleep 3; continue
             fi
 
-            unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
+            unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content" >/dev/null 2>&1
 
             SRC_RESTORE=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" -path "*REMOVER*" | head -n 1)
 
             if [ -n "$SRC_RESTORE" ]; then
-                adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ORIGINAL}'"
-                adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}'"
-                adb push "$SRC_RESTORE/." "${FF_DATA_ROOT}/" > /dev/null
-                adb shell "find '${FF_ASSETS_DIR}/gameassetbundles' -exec touch -t ${DATA_FALSA} {} \; 2>/dev/null"
-                adb shell "touch -t ${DATA_FALSA} '${FF_ASSETS_DIR}/fileinfo' 2>/dev/null"
+                adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ORIGINAL}'" >/dev/null 2>&1
+                adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}'" >/dev/null 2>&1
+                adb push "$SRC_RESTORE/." "${FF_DATA_ROOT}/" > /dev/null 2>&1
+                adb shell "find '${FF_ASSETS_DIR}/gameassetbundles' -exec touch -t ${DATA_FALSA} {} \; 2>/dev/null" >/dev/null 2>&1
+                adb shell "touch -t ${DATA_FALSA} '${FF_ASSETS_DIR}/fileinfo' 2>/dev/null" >/dev/null 2>&1
                 ESTADO[1]=0
                 echo -e "${GREEN}[+] Bypass removido!${NC}"
                 echo -e "${YELLOW}[!] Abra o Free Fire.${NC}"
