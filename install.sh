@@ -10,12 +10,12 @@ FF_PACKAGE="com.dts.freefireth"
 FF_DATA_ROOT="/storage/emulated/0/Android/data/${FF_PACKAGE}"
 FF_ASSETS_DIR="${FF_DATA_ROOT}/files/contentcache/Optional/android"
 
+# LINK ÚNICO DO ZIP COM TODOS OS MODS
 REMOTE_ZIP="https://raw.githubusercontent.com/Pkdev730/Holograma/main/HOLOGRAMA%20VIP.zip"
 TMP_DIR="/data/data/com.termux/files/usr/tmp/ghost_cloud"
 
 SHADER_ORIGINAL="shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D"
 SHADER_MOD="shaders.pedroomods~vip~3D"
-
 DATA_FALSA="202611211357.00"
 LOGCAT_PKG="com.dp.logcatapp"
 
@@ -35,41 +35,28 @@ echo -e "${BLACK}==========================================${NC}\n"
 
 # --- CONEXÃO ADB ---
 ADB_STATE=$(adb get-state 2>/dev/null | tr -d '\r\n')
-if [ "$ADB_STATE" == "device" ]; then
-    echo -e "${GREEN}[+] ADB já conectado.${NC}"
-    sleep 1
-else
+if [ "$ADB_STATE" != "device" ]; then
     echo -e "${WHITE}Etapa 1: Conexão com o Dispositivo${NC}"
     echo -e "${YELLOW}ADB não conectado. Configure agora.${NC}\n"
     echo -n "IP:PORTA de PAREAMENTO: "; read -r PAIR_ADDR < /dev/tty
     echo -n "Código de 6 dígitos:    "; read -r PAIR_CODE < /dev/tty
-    echo -e "\n${YELLOW}[*] Pareando...${NC}"
-    adb pair $PAIR_ADDR $PAIR_CODE
+    adb pair $PAIR_ADDR $PAIR_CODE >/dev/null 2>&1
     echo -n "IP:PORTA de CONEXÃO: "; read -r CONN_ADDR < /dev/tty
-    echo -e "${YELLOW}[*] Conectando...${NC}"
-    adb connect $CONN_ADDR
-    sleep 1
+    adb connect $CONN_ADDR >/dev/null 2>&1
     if [ "$(adb get-state 2>/dev/null | tr -d '\r\n')" != "device" ]; then
         echo -e "${RED}[!] Falha na conexão.${NC}"; exit 1
     fi
 fi
 
+# --- LICENÇA ---
 printf "\033c"
 echo -e "${BLACK}==========================================${NC}"
 echo -e "${BLACK}             VALIDAÇÃO DE LICENÇA         ${NC}"
 echo -e "${BLACK}==========================================${NC}\n"
-
-echo -n "Digite sua Key (ex: External-teste1): "; read -r USER_KEY < /dev/tty
-if [ -z "$USER_KEY" ]; then echo -e "${RED}[!] Key vazia.${NC}"; exit 1; fi
-
-echo -e "${YELLOW}[*] Verificando Key...${NC}"
+echo -n "Digite sua Key: "; read -r USER_KEY < /dev/tty
 FIREBASE_RESPONSE=$(curl -s --max-time 5 "${FIREBASE_URL}/.json")
-if [ -z "$FIREBASE_RESPONSE" ] || [ "$FIREBASE_RESPONSE" == "null" ]; then
-    echo -e "${RED}[!] Falha ao conectar.${NC}"; exit 1
-fi
 STATUS=$(echo "$FIREBASE_RESPONSE" | grep -o "\"$USER_KEY\".*\"status\":\"ativada\"" | head -n 1)
-if [ -z "$STATUS" ]; then echo -e "${RED}[!] Key inválida ou expirada.${NC}"; exit 1; fi
-
+if [ -z "$STATUS" ]; then echo -e "${RED}[!] Key inválida.${NC}"; exit 1; fi
 echo -e "${GREEN}[+] Acesso Autorizado!${NC}"
 sleep 2
 
@@ -99,56 +86,34 @@ while true; do
     read -r FUNC_OPT < /dev/tty
 
     case $FUNC_OPT in
-
         99)
             echo -e "\n${RED}[!] Vai apagar rastros e fechar sessão.${NC}"
             echo -n "Tem certeza? (s/n): "
             read -r CONFIRMA < /dev/tty
-
             if [ "$CONFIRMA" == "s" ]; then
                 echo -e "${YELLOW}[*] Executando bypass...${NC}"
-
-                # mata LogcatReader antes que salve
-                adb shell "pid=\$(pidof $LOGCAT_PKG 2>/dev/null); \
-                [ -n \"\$pid\" ] && kill -9 \$pid 2>/dev/null; true"
+                adb shell "am force-stop $FF_PACKAGE" >/dev/null 2>&1
+                adb shell "am force-stop $LOGCAT_PKG" >/dev/null 2>&1
                 adb shell "pm clear $LOGCAT_PKG" >/dev/null 2>&1
-
-                # apaga bash_history e tmp via adb
-                adb shell "rm -f /data/data/com.termux/files/home/.bash_history" >/dev/null 2>&1
-                adb shell "rm -rf /data/data/com.termux/files/usr/tmp/" >/dev/null 2>&1
-
-                # fecha ADB
-                adb shell "settings put global adb_wifi_enabled 0" >/dev/null 2>&1
-                adb shell "setprop service.adb.tcp.port -1" >/dev/null 2>&1
-                adb shell "stop adbd" >/dev/null 2>&1
-
-                # limpeza local
-                rm -rf "$TMP_DIR"
-                rm -rf "/sdcard/Download/ff_original_backup"
-                rm -rf "/sdcard/Download/*.zip"
-                rm -rf "/sdcard/Download/*.sh"
+                adb shell "logcat -c" >/dev/null 2>&1
+                adb shell "dumpsys batterystats --reset" >/dev/null 2>&1
+                
+                rm -rf "$TMP_DIR" "/sdcard/Download/ff_original_backup" "/sdcard/Download/*.zip" "/sdcard/Download/*.sh"
                 history -c
-                rm -f ~/.bash_history
-                rm -f /data/data/com.termux/files/home/.bash_history
+                rm -f ~/.bash_history /data/data/com.termux/files/home/.bash_history
                 SCRIPT_PATH="$(realpath $0)"
                 rm -f "$SCRIPT_PATH"
+                adb disconnect >/dev/null 2>&1
 
                 echo -e "${GREEN}[+] Rastros apagados. Sessão encerrada.${NC}"
-                sleep 1
+                echo -e "${YELLOW}[!] Desligue a Depuração Sem Fio nas configurações.${NC}"
+                sleep 2
                 exit 0
             fi
             ;;
 
         1)
-            echo -e "\n${CYAN}[*] Injetando bypass...${NC}"
-            echo -e "${YELLOW}[!] Feche o Free Fire manualmente antes de continuar.${NC}"
-            echo -n "Fechou? (s/n): "
-            read -r FECHOU < /dev/tty
-            if [ "$FECHOU" != "s" ]; then
-                echo -e "${RED}[!] Feche o jogo antes de injetar.${NC}"
-                sleep 2; continue
-            fi
-
+            echo -e "\n${CYAN}[*] Baixando pacote de mods...${NC}"
             rm -rf "$TMP_DIR" && mkdir -p "$TMP_DIR/download"
             curl -sL "$REMOTE_ZIP" -o "${TMP_DIR}/master.zip"
 
@@ -159,24 +124,40 @@ while true; do
 
             unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
 
-            SRC_MOD=$(find "${TMP_DIR}/content" -type d \
-                -name "com.dts.freefireth" \
-                -path "*/HOLOGRAMA FREE FIRE NORMAL/*" | head -n 1)
+            echo -e "\n${CYAN}[*] Escolha a cor do Holograma:${NC}"
+            echo -e "  [1] HOLOGRAMA ROSA"
+            echo -e "  [2] HOLOGRAMA BRANCO"
+            echo -n "  » Opção: "
+            read -r COR_OPT < /dev/tty
 
-            if [ -n "$SRC_MOD" ]; then
-                adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ORIGINAL}'"
-                adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}'"
-                adb push "$SRC_MOD/." "${FF_DATA_ROOT}/" > /dev/null
-                adb shell "find '${FF_ASSETS_DIR}/gameassetbundles' \
-                    -exec touch -t ${DATA_FALSA} {} \; 2>/dev/null"
-                adb shell "touch -t ${DATA_FALSA} \
-                    '${FF_ASSETS_DIR}/fileinfo' 2>/dev/null"
-                ESTADO[1]=1
-                echo -e "${GREEN}[+] Bypass ativado!${NC}"
-                echo -e "${YELLOW}[!] Feche o jogo completamente e abra novamente.${NC}"
+            if [ "$COR_OPT" == "1" ]; then
+                NOME_COR="ROSA"
+            elif [ "$COR_OPT" == "2" ]; then
+                NOME_COR="BRANCO"
             else
-                echo -e "${RED}[!] Falha no bypass.${NC}"
+                echo -e "${RED}[!] Opção inválida.${NC}"; sleep 2; continue
             fi
+
+            # Procura a pasta da cor escolhida dentro do que foi extraído
+            SRC_MOD=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" -path "*HOLOGRAMA $NOME_COR*" | head -n 1)
+
+            if [ -z "$SRC_MOD" ]; then
+                echo -e "${RED}[!] Pasta do Holograma $NOME_COR não encontrada no ZIP.${NC}"
+                sleep 3; continue
+            fi
+
+            echo -e "\n${CYAN}[*] Injetando Holograma $NOME_COR...${NC}"
+            
+            adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ORIGINAL}'"
+            adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}'"
+            adb push "$SRC_MOD/." "${FF_DATA_ROOT}/" > /dev/null
+            
+            adb shell "find '${FF_ASSETS_DIR}/gameassetbundles' -exec touch -t ${DATA_FALSA} {} \; 2>/dev/null"
+            adb shell "touch -t ${DATA_FALSA} '${FF_ASSETS_DIR}/fileinfo' 2>/dev/null"
+            
+            ESTADO[1]=1
+            echo -e "\n${GREEN}[+] Holograma $NOME_COR ativado!${NC}"
+            echo -e "${YELLOW}[!] Abra o Free Fire.${NC}"
             rm -rf "$TMP_DIR"
             ;;
 
@@ -200,21 +181,17 @@ while true; do
 
             unzip -q -o "${TMP_DIR}/master.zip" -d "${TMP_DIR}/content"
 
-            SRC_RESTORE=$(find "${TMP_DIR}/content" -type d \
-                -name "com.dts.freefireth" \
-                -path "*/REMOVER HOLOGRAMA FREE FIRE NORMAL/*" | head -n 1)
+            SRC_RESTORE=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" -path "*REMOVER*" | head -n 1)
 
             if [ -n "$SRC_RESTORE" ]; then
                 adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ORIGINAL}'"
                 adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}'"
                 adb push "$SRC_RESTORE/." "${FF_DATA_ROOT}/" > /dev/null
-                adb shell "find '${FF_ASSETS_DIR}/gameassetbundles' \
-                    -exec touch -t ${DATA_FALSA} {} \; 2>/dev/null"
-                adb shell "touch -t ${DATA_FALSA} \
-                    '${FF_ASSETS_DIR}/fileinfo' 2>/dev/null"
+                adb shell "find '${FF_ASSETS_DIR}/gameassetbundles' -exec touch -t ${DATA_FALSA} {} \; 2>/dev/null"
+                adb shell "touch -t ${DATA_FALSA} '${FF_ASSETS_DIR}/fileinfo' 2>/dev/null"
                 ESTADO[1]=0
                 echo -e "${GREEN}[+] Bypass removido!${NC}"
-                echo -e "${YELLOW}[!] Feche o jogo completamente e abra novamente.${NC}"
+                echo -e "${YELLOW}[!] Abra o Free Fire.${NC}"
             else
                 echo -e "${RED}[!] Falha na remoção.${NC}"
             fi
