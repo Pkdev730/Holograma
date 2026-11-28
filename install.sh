@@ -13,8 +13,6 @@ FF_ASSETS_DIR="${FF_DATA_ROOT}/files/contentcache/Optional/android"
 REMOTE_ZIP="https://raw.githubusercontent.com/Pkdev730/Holograma/main/HOLOGRAMA%20VIP.zip"
 TMP_DIR="/data/data/com.termux/files/usr/tmp/ghost_cloud"
 
-SHADER_ORIGINAL="shaders.OMFd4hA1zxkPVCeTGXNDssFQbgI~3D"
-SHADER_MOD="shaders.pedroomods~vip~3D"
 DATA_FALSA="202611211357.00"
 LOGCAT_PKG="com.dp.logcatapp"
 
@@ -92,17 +90,11 @@ while true; do
             if [ "$CONFIRMA" == "s" ]; then
                 echo -e "${YELLOW}[*] Executando bypass...${NC}"
 
-                # Limpa APENAS o LogcatReader (sem force-stop no jogo)
                 adb shell "pm clear $LOGCAT_PKG" >/dev/null 2>&1
-
-                # Apaga bash_history e tmp do Termux via ADB
                 adb shell "rm -f /data/data/com.termux/files/home/.bash_history" >/dev/null 2>&1
                 adb shell "rm -rf /data/data/com.termux/files/usr/tmp/" >/dev/null 2>&1
-
-                # Desconecta do ADB (sem mexer nas configurações globais)
                 adb disconnect >/dev/null 2>&1
 
-                # Limpeza local no Termux
                 rm -rf "$TMP_DIR" "/sdcard/Download/ff_original_backup" "/sdcard/Download/*.zip" "/sdcard/Download/*.sh"
                 history -c
                 rm -f ~/.bash_history /data/data/com.termux/files/home/.bash_history
@@ -153,8 +145,9 @@ while true; do
                 sleep 3; continue
             fi
 
-            adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ORIGINAL}'" >/dev/null 2>&1
-            adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}'" >/dev/null 2>&1
+            # A faxina coringa: apaga tudo que é shader.* na pasta
+            adb shell "rm -f ${FF_ASSETS_DIR}/gameassetbundles/shaders.*" >/dev/null 2>&1
+            
             adb push "$SRC_MOD/." "${FF_DATA_ROOT}/" > /dev/null 2>&1
 
             adb shell "find '${FF_ASSETS_DIR}/gameassetbundles' -exec touch -t ${DATA_FALSA} {} \; 2>/dev/null" >/dev/null 2>&1
@@ -190,11 +183,14 @@ while true; do
             SRC_RESTORE=$(find "${TMP_DIR}/content" -type d -name "com.dts.freefireth" -path "*REMOVER*" | head -n 1)
 
             if [ -n "$SRC_RESTORE" ]; then
-                adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_ORIGINAL}'" >/dev/null 2>&1
-                adb shell "rm -f '${FF_ASSETS_DIR}/gameassetbundles/${SHADER_MOD}'" >/dev/null 2>&1
+                # A mesma faxina coringa, antes de restaurar
+                adb shell "rm -f ${FF_ASSETS_DIR}/gameassetbundles/shaders.*" >/dev/null 2>&1
+
                 adb push "$SRC_RESTORE/." "${FF_DATA_ROOT}/" > /dev/null 2>&1
+
                 adb shell "find '${FF_ASSETS_DIR}/gameassetbundles' -exec touch -t ${DATA_FALSA} {} \; 2>/dev/null" >/dev/null 2>&1
                 adb shell "touch -t ${DATA_FALSA} '${FF_ASSETS_DIR}/fileinfo' 2>/dev/null" >/dev/null 2>&1
+
                 ESTADO[1]=0
                 echo -e "${GREEN}[+] Bypass removido!${NC}"
                 echo -e "${YELLOW}[!] Abra o Free Fire.${NC}"
